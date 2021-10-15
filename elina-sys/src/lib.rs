@@ -34,6 +34,14 @@ pub fn bool_from_c_bool(b: bool_) -> bool {
     b == true_
 }
 
+pub fn c_bool_from_bool(b: bool) -> bool_ {
+    if b {
+        true_
+    } else {
+        false_
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::ffi::CString;

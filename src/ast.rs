@@ -4,7 +4,7 @@ use std::ffi::{CStr, CString};
 use std::fmt::{Debug, Display, Formatter, Write};
 use std::ops::Deref;
 use std::ptr::{null_mut, slice_from_raw_parts};
-use elina_sys::{__gmpq_get_d, __gmpq_get_str, __gmpz_export, bool_from_c_bool, ConsTyp, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_bound_linexpr, elina_abstract0_bound_texpr, elina_abstract0_free, elina_abstract0_meet, elina_abstract0_meet_lincons_array, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_dim_t, elina_dimension_t, elina_interval_free, elina_interval_t, elina_intlinearize_texpr0_intlinear, elina_lincons0_array_clear, elina_lincons0_array_print, elina_linexpr0_t, elina_manager_free, elina_manager_t, elina_scalar_discr_t_ELINA_SCALAR_MPQ, elina_scalar_free, elina_scalar_t, elina_tcons0_array_clear, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, FILE, free, opt_pk_manager_alloc, true_};
+use elina_sys::{__gmpq_get_d, __gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, ConsTyp, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_bound_linexpr, elina_abstract0_bound_texpr, elina_abstract0_free, elina_abstract0_meet, elina_abstract0_meet_lincons_array, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_dim_t, elina_dimension_t, elina_interval_free, elina_interval_t, elina_intlinearize_texpr0_intlinear, elina_lincons0_array_clear, elina_lincons0_array_print, elina_linexpr0_t, elina_manager_free, elina_manager_t, elina_scalar_discr_t_ELINA_SCALAR_MPQ, elina_scalar_free, elina_scalar_t, elina_tcons0_array_clear, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, FILE, free, opt_pk_manager_alloc, true_};
 
 pub use elina_sys::{TexprBinop, TexprUnop};
 
@@ -335,11 +335,11 @@ impl Abstract {
         }
     }
 
-    pub fn meet<M: Manager, MT: Meetable>(&mut self, man: &M, other: &MT) {
+    pub fn meet<M: Manager, MT: Meetable + ?Sized>(&mut self, man: &M, other: &MT) {
         other.meet_with(man, self);
     }
 
-    pub fn meet_copy<M: Manager, MT: Meetable>(&self, man: &M, other: &MT) -> Abstract {
+    pub fn meet_copy<M: Manager, MT: Meetable + ?Sized>(&self, man: &M, other: &MT) -> Abstract {
         other.meet_with_copy(man, self)
     }
 
@@ -518,79 +518,22 @@ impl Drop for Abstract {
 //     }
 // }
 
-pub trait Meetable {
-    // reverse, self.meet_with(other) = elina_abstract0_meet...(other, self)
-    fn meet_with<M: Manager>(&self, man: &M, other: &mut Abstract);
-    fn meet_with_copy<M: Manager>(&self, man: &M, other: &Abstract) -> Abstract;
+
+/// Allows sharing of meet functionality for use in [`Meetable`]
+///
+/// This trait is unsafe, because the function [`SimpleMeetable::meet_internal`] mutates the `other`
+/// reference if `destructive` is true.
+pub unsafe trait SimpleMeetable {
+    /// Returns a pointer to the internal meet result of `self` with `other`.
+    ///
+    /// If `destructive` is `true`, `other` is internally mutated and its pointer is returned,
+    /// if `destructive` is `false`, `other` is not mutated and a pointer to the newly allocated
+    /// internal `elina_abstract0_t` is returned.
+    fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t;
 }
 
-impl Meetable for Abstract {
-    fn meet_with<M: Manager>(&self, man: &M, other: &mut Abstract) {
-        unsafe {
-            elina_abstract0_meet(man.as_manager_ptr(), true_, other.elina_abstract0, self.elina_abstract0);
-        }
-    }
-
-    fn meet_with_copy<M: Manager>(&self, man: &M, other: &Abstract) -> Abstract {
-        unsafe {
-            Abstract {
-                elina_abstract0: elina_abstract0_meet(
-                    man.as_manager_ptr(),
-                    false_,
-                    other.elina_abstract0,
-                    self.elina_abstract0
-                )
-            }
-        }
-    }
-}
-
-impl Meetable for Tcons {
-    fn meet_with<M: Manager>(&self, man: &M, other: &mut Abstract) {
-        other.meet(man, &vec![self]);
-        // unsafe {
-        //     // TODO refactor array making into function
-        //     let mut tcons_arr = elina_tcons0_array_make(0);
-        //     tcons_arr.p = *self.elina_tcons0;
-        //     tcons_arr.size
-        //
-        //     let tcons_arr_heap = Box::into_raw(Box::new(tcons_arr));
-        //
-        //
-        //     elina_abstract0_meet_tcons_array(
-        //         man.as_manager_ptr(),
-        //         true_,
-        //         other.elina_abstract0,
-        //         tcons_arr_heap
-        //     );
-        //
-        //     let tcons_arr = Box::from_raw(tcons_arr_heap);
-        //     elina_tcons0_array_clear()
-        // }
-    }
-
-    fn meet_with_copy<M: Manager>(&self, man: &M, other: &Abstract) -> Abstract {
-        other.meet_copy(man, &vec![self])
-        // unsafe {
-        //     let mut tcons_arr = elina_tcons0_array_make(1);
-        //     *tcons_arr.p = *self.elina_tcons0;
-        //
-        //     let tcons_arr_heap = Box::new(tcons_arr);
-        //
-        //     Abstract {
-        //         elina_abstract0: elina_abstract0_meet_tcons_array(
-        //             man.as_manager_ptr(),
-        //             false_,
-        //             other.elina_abstract0,
-        //             Box::into_raw(tcons_arr_heap)
-        //         )
-        //     }
-        // }
-    }
-}
-
-impl Meetable for Vec<&Tcons> {
-    fn meet_with<M: Manager>(&self, man: &M, other: &mut Abstract) {
+unsafe impl SimpleMeetable for [&Tcons] {
+    fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
         unsafe {
             let mut tcons_arr = elina_tcons0_array_make(0);
             let mut ptrs = self.iter().map(|tcons| *tcons.elina_tcons0).collect::<Vec<_>>();
@@ -598,39 +541,77 @@ impl Meetable for Vec<&Tcons> {
             tcons_arr.size = self.len() as u64;
             std::mem::forget(ptrs);
 
-            elina_abstract0_meet_tcons_array(
+            let res_abs_ptr = elina_abstract0_meet_tcons_array(
                 man.as_manager_ptr(),
-                true_,
+                c_bool_from_bool(destructive),
                 other.elina_abstract0,
                 &mut tcons_arr
             );
 
             std::mem::drop(Vec::from_raw_parts(tcons_arr.p, self.len(), self.len()));
 
+            res_abs_ptr
+        }
+    }
+}
+
+unsafe impl<const N: usize> SimpleMeetable for [&Tcons; N] {
+    fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+        self[..].meet_internal(man, other, destructive)
+    }
+}
+
+unsafe impl SimpleMeetable for Vec<&Tcons> {
+    fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+        self[..].meet_internal(man, other, destructive)
+    }
+}
+
+unsafe impl SimpleMeetable for Tcons {
+    fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+        [self].meet_internal(man, other, destructive)
+    }
+}
+
+unsafe impl SimpleMeetable for Abstract {
+    fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+        unsafe {
+            elina_abstract0_meet(
+                man.as_manager_ptr(),
+                c_bool_from_bool(destructive),
+                other.elina_abstract0,
+                self.elina_abstract0,
+            )
+        }
+    }
+}
+
+// TODO: Add docs, examples
+// also add a custom struct that allows AND/ORs between Tcons by lazily storing them
+// and only evaluating them when Meet/Join is called
+
+// TODO: other idea
+// add meet_internal to Meetable, give all methods a default implementation, but make
+// meet_internal's default implementation panic. that way we are using one less trait
+pub trait Meetable {
+    // reverse, self.meet_with(other) = elina_abstract0_meet...(other, self)
+    fn meet_with<M: Manager>(&self, man: &M, other: &mut Abstract);
+    fn meet_with_copy<M: Manager>(&self, man: &M, other: &Abstract) -> Abstract;
+}
+
+impl<SM: SimpleMeetable + ?Sized> Meetable for SM {
+    fn meet_with<M: Manager>(&self, man: &M, other: &mut Abstract) {
+        unsafe {
+            // Mutates "other"
+            self.meet_internal(man, other, true);
         }
     }
 
     fn meet_with_copy<M: Manager>(&self, man: &M, other: &Abstract) -> Abstract {
         unsafe {
-            let mut tcons_arr = elina_tcons0_array_make(0);
-            let mut ptrs = self.iter().map(|tcons| *tcons.elina_tcons0).collect::<Vec<_>>();
-            tcons_arr.p = ptrs.as_mut_ptr();
-            tcons_arr.size = self.len() as u64;
-            std::mem::forget(ptrs);
-
-            let abs_ptr = elina_abstract0_meet_tcons_array(
-                man.as_manager_ptr(),
-                false_,
-                other.elina_abstract0,
-                &mut tcons_arr
-            );
-
-            let tcons_arr = Vec::from_raw_parts(tcons_arr.p,self.len(), self.len());
-            // should be unnecessary hopefully
-            std::mem::drop(tcons_arr);
-
+            let new_abs_ptr = self.meet_internal(man, other, false);
             Abstract {
-                elina_abstract0: abs_ptr
+                elina_abstract0: new_abs_ptr
             }
         }
     }

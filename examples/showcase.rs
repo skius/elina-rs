@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use elina_rs::ast::*;
 use elina_sys::{ConsTyp, elina_interval_fprint, stdout};
 
@@ -19,7 +20,7 @@ fn main() {
     println!("top satisfies x < 20: {}", top.satisfy(&man, &upper));
     println!();
 
-    let mut meet = top.meet_copy(&man, &vec![&upper, &lower]);
+    let mut meet = top.meet_copy(&man, &[&upper, &lower]);
     println!("meet:");
     meet.print(&man, &env);
     println!("meet satisfies x < 20: {}", meet.satisfy(&man, &upper));
@@ -49,14 +50,14 @@ fn main() {
 
     // 'Testing' memory leaks
 
-    let mut i = 0;
-    loop {
-        i += 1;
-
-        meet_assn.meet(&man, &vec![&upper, &lower]);
-        if i % 10000 == 0 {
-            println!("iter: {}", i);
-            meet_assn.print(&man, &env);
-        }
-    }
+    // let mut i = 0;
+    // loop {
+    //     i += 1;
+    //
+    //     meet_assn.meet(&man, &[&upper, &lower]);
+    //     if i % 10000 == 0 {
+    //         println!("iter: {}", i);
+    //         meet_assn.print(&man, &env);
+    //     }
+    // }
 }
