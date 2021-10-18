@@ -1,6 +1,5 @@
 use std::ops::Deref;
 use elina::ast::*;
-use elina_sys::{ConsTyp, elina_interval_fprint, stdout};
 
 fn main() {
     let env = Environment::new(vec!["x", "y", "z"]);
