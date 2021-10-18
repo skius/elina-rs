@@ -8,10 +8,15 @@ use elina_sys::{__gmpq_get_d, __gmpq_get_str, __gmpz_export, bool_from_c_bool, c
 
 pub use elina_sys::{TexprBinop, TexprUnop};
 
+/// Provides the implementations of different abstract domains.
 pub trait Manager {
+    /// Returns the `elina_manager_t` pointer required for internal function calls.
     unsafe fn as_manager_ptr(&self) -> *mut elina_manager_t;
 }
 
+/// ELINA's polyhedra domain manager.
+///
+/// Wraps `elina_manager_t` obtained by `opt_pkt_manager_alloc`.
 pub struct OptPkManager {
     elina_manager: *mut elina_manager_t,
 }
@@ -40,12 +45,14 @@ impl Manager for OptPkManager {
     }
 }
 
+/// Keeps track of variables names and their associated dimension in the abstract element.
 #[derive(Debug)]
 pub struct Environment {
     var_to_dim: HashMap<String, elina_dim_t>,
 }
 
 impl Environment {
+    /// Returns an `Environment` consisting of the variables in the ordered vector `int_names`.
     pub fn new<S>(int_names: Vec<S>) -> Environment
         where S: AsRef<str>
     {
@@ -64,12 +71,20 @@ impl Environment {
 //     Binop(TexprBinop, Box<>),
 // }
 
+
+/// A tree-based expression.
+///
+/// Stores its expression in the usual tree-based format from e.g. abstract syntax trees. This
+/// allows for simple clients of this type.
+///
+/// Wraps `elina_texpr0_t`.
 #[derive(Debug)]
 pub struct Texpr {
     elina_texpr0: *mut elina_texpr0_t,
 }
 
 impl Texpr {
+    /// Returns a `Texpr` representing a constant integer.
     pub fn int(i: i64) -> Texpr {
         unsafe {
             Texpr {
@@ -78,6 +93,9 @@ impl Texpr {
         }
     }
 
+    /// Returns a `Texpr` representing a variable with name `s`.
+    ///
+    /// Requires `env`, because internally variables are simply dimensions of the abstract element.
     pub fn var<S: Borrow<str>>(env: &Environment, s: S) -> Texpr {
         unsafe {
             Texpr {
@@ -86,6 +104,7 @@ impl Texpr {
         }
     }
 
+    /// Returns a `Texpr` representing the variable associated with dimension `dim`.
     pub fn var_dim(dim: u32) -> Texpr {
         unsafe {
             Texpr {
@@ -94,6 +113,7 @@ impl Texpr {
         }
     }
 
+    /// Returns a `Texpr` representing the binary expression `left op right`.
     pub fn binop(op: TexprBinop, left: Texpr, right: Texpr) -> Texpr {
         unsafe {
 
@@ -114,6 +134,7 @@ impl Texpr {
         }
     }
 
+    /// Returns a `Texpr` representing the unary expression `op inner`.
     pub fn unop(op: TexprUnop, inner: Texpr) -> Texpr {
         unsafe {
             let res = Texpr {
@@ -254,11 +275,17 @@ impl Drop for Texpr {
     }
 }
 
+/// A tree-based constraint.
+///
+/// Wraps `elina_tcons0_t`.
 pub struct Tcons {
     elina_tcons0: *mut elina_tcons0_t,
 }
 
 impl Tcons {
+    /// Creates a new `Tcons`, consuming `texpr` in the process.
+    ///
+    /// Alternatively, you can use the various [`Texpr::lt`], [`Texpr::gt`], etc. functions.
     pub fn new(texpr: Texpr, cons_typ: ConsTyp) -> Tcons {
         unsafe {
             let res = Tcons::from_raw(texpr.elina_texpr0, cons_typ as elina_constyp_t);
@@ -309,6 +336,8 @@ impl Drop for Tcons {
 ///  An element of the abstract domain lattice.
 ///
 /// In ELINA, a single `Abstract` models mappings from variables to sets of numbers.
+///
+/// Wraps `elina_abstract0_t`.
 pub struct Abstract {
     elina_abstract0: *mut elina_abstract0_t,
 }
