@@ -1,5 +1,5 @@
 use std::ops::Deref;
-use elina_rs::ast::*;
+use elina::ast::*;
 use elina_sys::{ConsTyp, elina_interval_fprint, stdout};
 
 fn main() {
