@@ -306,11 +306,15 @@ impl Drop for Tcons {
     }
 }
 
+///  An element of the abstract domain lattice.
+///
+/// In ELINA, a single `Abstract` models mappings from variables to sets of numbers.
 pub struct Abstract {
     elina_abstract0: *mut elina_abstract0_t,
 }
 
 impl Abstract {
+    /// Returns a new `Abstract` element representing Top (⊤) in the lattice.
     pub fn top<M: Manager>(man: &M, env: &Environment) -> Abstract {
         unsafe {
             Abstract {
@@ -319,6 +323,7 @@ impl Abstract {
         }
     }
 
+    /// Returns a new `Abstract` element representing Bottom (⊥) in the lattice.
     pub fn bottom<M: Manager>(man: &M, env: &Environment) -> Abstract {
         unsafe {
             Abstract {
@@ -327,6 +332,7 @@ impl Abstract {
         }
     }
 
+    /// Returns `true` if `self` satisfies `tcons`, i.e. `self` ⊆ `tcons`.
     pub fn satisfy<M: Manager>(&self, man: &M, tcons: &Tcons) -> bool {
         unsafe {
             bool_from_c_bool(
@@ -335,14 +341,26 @@ impl Abstract {
         }
     }
 
+    /// Performs the meet operation on the lattice with `self` and `other`, and stores the
+    /// result in `self`.
+    ///
+    /// See the copying counterpart at [`Abstract::meet_copy`].
     pub fn meet<M: Manager, MT: Meetable + ?Sized>(&mut self, man: &M, other: &MT) {
         other.meet_with(man, self);
     }
 
+    /// Returns the result of the meet operation on the lattice with `self` and `other`.
+    ///
+    /// See the mutating counterpart at [`Abstract::meet`].
     pub fn meet_copy<M: Manager, MT: Meetable + ?Sized>(&self, man: &M, other: &MT) -> Abstract {
         other.meet_with_copy(man, self)
     }
 
+    /// Assigns `var` to `texpr` in `self`.
+    ///
+    /// This function can be used to model mutable variables.
+    ///
+    /// See the copying counterpart at [`Abstract::assign_copy`].
     pub fn assign<M: Manager, S: Borrow<str>>(&mut self, man: &M, env: &Environment, var: S, texpr: &Texpr) {
         unsafe {
             elina_abstract0_assign_texpr(
@@ -356,6 +374,11 @@ impl Abstract {
         }
     }
 
+    /// Returns a new `Abstract` representing `self` after `var` has been assigned `texpr`.
+    ///
+    /// This function can be used to model mutable variables.
+    ///
+    /// See the mutating counterpart at [`Abstract::assign`].
     pub fn assign_copy<M, S>(&self, man: &M, env: &Environment, var: S, texpr: &Texpr) -> Abstract
     where
         M: Manager,
@@ -375,6 +398,7 @@ impl Abstract {
         }
     }
 
+    /// Returns the bounds of variable `var` in `self`.
     pub fn get_bounds<M, S>(&self, man: &M, env: &Environment, var: S) -> Interval
     where
         M: Manager,
@@ -463,6 +487,7 @@ impl Abstract {
         }
     }
 
+    /// Prints `self` to `stdout`.
     pub fn print<M: Manager>(&self, man: &M, env: &Environment) {
         unsafe {
             let rev_env = env.var_to_dim.iter().map(|(k, v)| (v.to_owned(), k.to_owned())).collect::<HashMap<elina_dim_t, String>>();
