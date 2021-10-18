@@ -518,22 +518,59 @@ impl Drop for Abstract {
 //     }
 // }
 
+// TODO: Add docs, examples
+// also add a custom struct that allows AND/ORs between Tcons by lazily storing them
+// and only evaluating them when Meet/Join is called
 
-/// Allows sharing of meet functionality for use in [`Meetable`]
+/// An element that [`Abstract`] can meet with.
 ///
-/// This trait is unsafe, because the function [`SimpleMeetable::meet_internal`] mutates the `other`
-/// reference if `destructive` is true.
-pub unsafe trait SimpleMeetable {
+/// Outside this trait, member functions are only called by
+/// [`Abstract::meet`] and [`Abstract::meet_copy`].
+///
+/// # Implementation
+///
+/// Implementors of this trait must either implement [`Meetable::meet_internal`] or both
+/// [`Meetable::meet_with`] and [`Meetable::meet_with_copy`].
+pub trait Meetable {
     /// Returns a pointer to the internal meet result of `self` with `other`.
     ///
     /// If `destructive` is `true`, `other` is internally mutated and its pointer is returned,
     /// if `destructive` is `false`, `other` is not mutated and a pointer to the newly allocated
     /// internal `elina_abstract0_t` is returned.
-    fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t;
+    ///
+    /// # Panics
+    ///
+    /// This function is only called by [`Meetable::meet_with`] and [`Meetable::meet_with_copy`].
+    /// It panics when neither `meet_internal` nor the two `meet_with`'s are implemented.
+    ///
+    /// # Safety
+    ///
+    /// This is unsafe, because `other` is internally mutated exactly if `destructive` is true.
+    /// The caller must ensure that they have mutable permissions for `other` when calling this
+    /// function with `destructive` set to true.
+    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+        panic!("Meetable::meet_internal's definition must be overridden if you don't provide implementations for meet_with and meet_with_copy");
+    }
+
+    // reverse, self.meet_with(other) = elina_abstract0_meet...(other, self)
+    fn meet_with<M: Manager>(&self, man: &M, other: &mut Abstract) {
+        unsafe {
+            // Mutates "other"
+            self.meet_internal(man, other, true);
+        }
+    }
+    fn meet_with_copy<M: Manager>(&self, man: &M, other: &Abstract) -> Abstract {
+        unsafe {
+            let new_abs_ptr = self.meet_internal(man, other, false);
+            Abstract {
+                elina_abstract0: new_abs_ptr
+            }
+        }
+    }
 }
 
-unsafe impl SimpleMeetable for [&Tcons] {
-    fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+impl Meetable for [&Tcons] {
+    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
         unsafe {
             let mut tcons_arr = elina_tcons0_array_make(0);
             let mut ptrs = self.iter().map(|tcons| *tcons.elina_tcons0).collect::<Vec<_>>();
@@ -555,65 +592,32 @@ unsafe impl SimpleMeetable for [&Tcons] {
     }
 }
 
-unsafe impl<const N: usize> SimpleMeetable for [&Tcons; N] {
-    fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+impl<const N: usize> Meetable for [&Tcons; N] {
+    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
         self[..].meet_internal(man, other, destructive)
     }
 }
 
-unsafe impl SimpleMeetable for Vec<&Tcons> {
-    fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+impl Meetable for Vec<&Tcons> {
+    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
         self[..].meet_internal(man, other, destructive)
     }
 }
 
-unsafe impl SimpleMeetable for Tcons {
-    fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+impl Meetable for Tcons {
+    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
         [self].meet_internal(man, other, destructive)
     }
 }
 
-unsafe impl SimpleMeetable for Abstract {
-    fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
-        unsafe {
-            elina_abstract0_meet(
-                man.as_manager_ptr(),
-                c_bool_from_bool(destructive),
-                other.elina_abstract0,
-                self.elina_abstract0,
-            )
-        }
-    }
-}
-
-// TODO: Add docs, examples
-// also add a custom struct that allows AND/ORs between Tcons by lazily storing them
-// and only evaluating them when Meet/Join is called
-
-// TODO: other idea
-// add meet_internal to Meetable, give all methods a default implementation, but make
-// meet_internal's default implementation panic. that way we are using one less trait
-pub trait Meetable {
-    // reverse, self.meet_with(other) = elina_abstract0_meet...(other, self)
-    fn meet_with<M: Manager>(&self, man: &M, other: &mut Abstract);
-    fn meet_with_copy<M: Manager>(&self, man: &M, other: &Abstract) -> Abstract;
-}
-
-impl<SM: SimpleMeetable + ?Sized> Meetable for SM {
-    fn meet_with<M: Manager>(&self, man: &M, other: &mut Abstract) {
-        unsafe {
-            // Mutates "other"
-            self.meet_internal(man, other, true);
-        }
-    }
-
-    fn meet_with_copy<M: Manager>(&self, man: &M, other: &Abstract) -> Abstract {
-        unsafe {
-            let new_abs_ptr = self.meet_internal(man, other, false);
-            Abstract {
-                elina_abstract0: new_abs_ptr
-            }
-        }
+impl Meetable for Abstract {
+    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+        elina_abstract0_meet(
+            man.as_manager_ptr(),
+            c_bool_from_bool(destructive),
+            other.elina_abstract0,
+            self.elina_abstract0,
+        )
     }
 }
 
