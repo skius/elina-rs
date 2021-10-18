@@ -4,14 +4,19 @@ use std::ffi::{CStr, CString};
 use std::fmt::{Debug, Display, Formatter, Write};
 use std::ops::Deref;
 use std::ptr::{null_mut, slice_from_raw_parts};
-use elina_sys::{__gmpq_get_d, __gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, ConsTyp, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_bound_linexpr, elina_abstract0_bound_texpr, elina_abstract0_free, elina_abstract0_meet, elina_abstract0_meet_lincons_array, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_dim_t, elina_dimension_t, elina_interval_free, elina_interval_t, elina_intlinearize_texpr0_intlinear, elina_lincons0_array_clear, elina_lincons0_array_print, elina_linexpr0_t, elina_manager_free, elina_manager_t, elina_scalar_discr_t_ELINA_SCALAR_MPQ, elina_scalar_free, elina_scalar_t, elina_tcons0_array_clear, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, FILE, free, opt_pk_manager_alloc, true_};
+use elina_sys::{__gmpq_get_d, __gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_bound_linexpr, elina_abstract0_bound_texpr, elina_abstract0_free, elina_abstract0_meet, elina_abstract0_meet_lincons_array, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_dim_t, elina_dimension_t, elina_interval_free, elina_interval_t, elina_intlinearize_texpr0_intlinear, elina_lincons0_array_clear, elina_lincons0_array_print, elina_linexpr0_t, elina_manager_free, elina_manager_t, elina_scalar_discr_t_ELINA_SCALAR_MPQ, elina_scalar_free, elina_scalar_t, elina_tcons0_array_clear, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, FILE, free, opt_pk_manager_alloc, true_};
 
-pub use elina_sys::{TexprBinop, TexprUnop};
+pub use elina_sys::{TexprBinop, TexprUnop, ConsTyp};
 
+/// Provides the implementations of different abstract domains.
 pub trait Manager {
+    /// Returns the `elina_manager_t` pointer required for internal function calls.
     unsafe fn as_manager_ptr(&self) -> *mut elina_manager_t;
 }
 
+/// ELINA's polyhedra domain manager.
+///
+/// Wraps `elina_manager_t` obtained by `opt_pkt_manager_alloc`.
 pub struct OptPkManager {
     elina_manager: *mut elina_manager_t,
 }
@@ -40,12 +45,14 @@ impl Manager for OptPkManager {
     }
 }
 
+/// Keeps track of variables names and their associated dimension in the abstract element.
 #[derive(Debug)]
 pub struct Environment {
     var_to_dim: HashMap<String, elina_dim_t>,
 }
 
 impl Environment {
+    /// Returns an `Environment` consisting of the variables in the ordered vector `int_names`.
     pub fn new<S>(int_names: Vec<S>) -> Environment
         where S: AsRef<str>
     {
@@ -64,12 +71,20 @@ impl Environment {
 //     Binop(TexprBinop, Box<>),
 // }
 
+
+/// A tree-based expression.
+///
+/// Stores its expression in the usual tree-based format from e.g. abstract syntax trees. This
+/// allows for simple clients of this type.
+///
+/// Wraps `elina_texpr0_t`.
 #[derive(Debug)]
 pub struct Texpr {
     elina_texpr0: *mut elina_texpr0_t,
 }
 
 impl Texpr {
+    /// Returns a `Texpr` representing a constant integer.
     pub fn int(i: i64) -> Texpr {
         unsafe {
             Texpr {
@@ -78,6 +93,9 @@ impl Texpr {
         }
     }
 
+    /// Returns a `Texpr` representing a variable with name `s`.
+    ///
+    /// Requires `env`, because internally variables are simply dimensions of the abstract element.
     pub fn var<S: Borrow<str>>(env: &Environment, s: S) -> Texpr {
         unsafe {
             Texpr {
@@ -86,6 +104,7 @@ impl Texpr {
         }
     }
 
+    /// Returns a `Texpr` representing the variable associated with dimension `dim`.
     pub fn var_dim(dim: u32) -> Texpr {
         unsafe {
             Texpr {
@@ -94,6 +113,7 @@ impl Texpr {
         }
     }
 
+    /// Returns a `Texpr` representing the binary expression `left op right`.
     pub fn binop(op: TexprBinop, left: Texpr, right: Texpr) -> Texpr {
         unsafe {
 
@@ -114,6 +134,7 @@ impl Texpr {
         }
     }
 
+    /// Returns a `Texpr` representing the unary expression `op inner`.
     pub fn unop(op: TexprUnop, inner: Texpr) -> Texpr {
         unsafe {
             let res = Texpr {
@@ -254,11 +275,17 @@ impl Drop for Texpr {
     }
 }
 
+/// A tree-based constraint.
+///
+/// Wraps `elina_tcons0_t`.
 pub struct Tcons {
     elina_tcons0: *mut elina_tcons0_t,
 }
 
 impl Tcons {
+    /// Creates a new `Tcons`, consuming `texpr` in the process.
+    ///
+    /// Alternatively, you can use the various [`Texpr::lt`], [`Texpr::gt`], etc. functions.
     pub fn new(texpr: Texpr, cons_typ: ConsTyp) -> Tcons {
         unsafe {
             let res = Tcons::from_raw(texpr.elina_texpr0, cons_typ as elina_constyp_t);
@@ -306,11 +333,17 @@ impl Drop for Tcons {
     }
 }
 
+///  An element of the abstract domain lattice.
+///
+/// In ELINA, a single `Abstract` models mappings from variables to sets of numbers.
+///
+/// Wraps `elina_abstract0_t`.
 pub struct Abstract {
     elina_abstract0: *mut elina_abstract0_t,
 }
 
 impl Abstract {
+    /// Returns a new `Abstract` element representing Top (⊤) in the lattice.
     pub fn top<M: Manager>(man: &M, env: &Environment) -> Abstract {
         unsafe {
             Abstract {
@@ -319,6 +352,7 @@ impl Abstract {
         }
     }
 
+    /// Returns a new `Abstract` element representing Bottom (⊥) in the lattice.
     pub fn bottom<M: Manager>(man: &M, env: &Environment) -> Abstract {
         unsafe {
             Abstract {
@@ -327,6 +361,7 @@ impl Abstract {
         }
     }
 
+    /// Returns `true` if `self` satisfies `tcons`, i.e. `self` ⊆ `tcons`.
     pub fn satisfy<M: Manager>(&self, man: &M, tcons: &Tcons) -> bool {
         unsafe {
             bool_from_c_bool(
@@ -335,14 +370,26 @@ impl Abstract {
         }
     }
 
+    /// Performs the meet operation on the lattice with `self` and `other`, and stores the
+    /// result in `self`.
+    ///
+    /// See the copying counterpart at [`Abstract::meet_copy`].
     pub fn meet<M: Manager, MT: Meetable + ?Sized>(&mut self, man: &M, other: &MT) {
         other.meet_with(man, self);
     }
 
+    /// Returns the result of the meet operation on the lattice with `self` and `other`.
+    ///
+    /// See the mutating counterpart at [`Abstract::meet`].
     pub fn meet_copy<M: Manager, MT: Meetable + ?Sized>(&self, man: &M, other: &MT) -> Abstract {
         other.meet_with_copy(man, self)
     }
 
+    /// Assigns `var` to `texpr` in `self`.
+    ///
+    /// This function can be used to model mutable variables.
+    ///
+    /// See the copying counterpart at [`Abstract::assign_copy`].
     pub fn assign<M: Manager, S: Borrow<str>>(&mut self, man: &M, env: &Environment, var: S, texpr: &Texpr) {
         unsafe {
             elina_abstract0_assign_texpr(
@@ -356,6 +403,11 @@ impl Abstract {
         }
     }
 
+    /// Returns a new `Abstract` representing `self` after `var` has been assigned `texpr`.
+    ///
+    /// This function can be used to model mutable variables.
+    ///
+    /// See the mutating counterpart at [`Abstract::assign`].
     pub fn assign_copy<M, S>(&self, man: &M, env: &Environment, var: S, texpr: &Texpr) -> Abstract
     where
         M: Manager,
@@ -375,6 +427,7 @@ impl Abstract {
         }
     }
 
+    /// Returns the bounds of variable `var` in `self`.
     pub fn get_bounds<M, S>(&self, man: &M, env: &Environment, var: S) -> Interval
     where
         M: Manager,
@@ -463,6 +516,7 @@ impl Abstract {
         }
     }
 
+    /// Prints `self` to `stdout`.
     pub fn print<M: Manager>(&self, man: &M, env: &Environment) {
         unsafe {
             let rev_env = env.var_to_dim.iter().map(|(k, v)| (v.to_owned(), k.to_owned())).collect::<HashMap<elina_dim_t, String>>();
@@ -623,6 +677,9 @@ impl Meetable for Abstract {
     }
 }
 
+/// An interval used by [`Abstract::get_bounds`].
+///
+/// Either bound may be `+/-infinity`, and both bounds are closed.
 #[derive(Clone, Copy)]
 pub struct Interval(pub Bound, pub Bound);
 
@@ -637,6 +694,7 @@ impl Debug for Interval {
     }
 }
 
+/// A bound used for [`Interval`].
 #[derive(Clone, Copy)]
 pub enum Bound {
     PosInfinity,
