@@ -472,7 +472,7 @@ impl Abstract {
                 .map(|d| CString::new(rev_env[&d].as_str()).unwrap().into_raw()).collect::<Vec<_>>();
 
             let names_ptr = names.as_mut_ptr();
-            std::mem::forget(names);
+            // std::mem::forget(names);
 
             let mut lincons_arr = elina_abstract0_to_lincons_array(man.as_manager_ptr(), self.elina_abstract0);
             // println!("Reached");
@@ -482,6 +482,8 @@ impl Abstract {
 
             elina_lincons0_array_clear(&mut lincons_arr);
             std::mem::drop(lincons_arr);
+
+            names.into_iter().for_each(|ptr| std::mem::drop(CString::from_raw(ptr)));
         }
     }
 }
