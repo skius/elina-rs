@@ -851,34 +851,32 @@ impl Meetable for Hcons {
         match self {
             Leaf(tcons) => tcons.meet_internal(man, other, destructive),
             Binop(And, left, right) => {
-                if destructive {
-                    let res = left.meet_internal(man, other, true);
-                    let res = right.meet_internal(man, res, true);
-                    res
-                } else {
-                    let interim = left.meet_internal(man, other, false);
-                    let res = right.meet_internal(man, interim, true);
-                    res
-                }
+                // res will be a new copy if `destructive` is true, or the mutated `other`
+                let res = left.meet_internal(man, other, destructive);
+
+                // we are mutably meeting with `right`, since `res` is already either
+                // a) a new copy if `destructive` is false
+                // b) the mutated `other`, which is fine since `destructive` must be true.
+                let res = right.meet_internal(man, res, true);
+                res
             },
             Binop(Or, left, right) => {
-                if destructive {
-                    let left_res = left.meet_internal(man, other, false);
-                    let right_res = right.meet_internal(man, other, true);
-                    let join_res = elina_abstract0_join(man.as_manager_ptr(), true_, right_res, left_res);
-                    // right has been mutated, left is still alive but useless => free left
-                    // dropping to use the Bottom guard
-                    std::mem::drop(Abstract { elina_abstract0: left_res });
-                    join_res
-                } else {
-                    let left_res = left.meet_internal(man, other, false);
-                    let right_res = right.meet_internal(man, other, false);
-                    let join_res = elina_abstract0_join(man.as_manager_ptr(), true_, right_res, left_res);
-                    // right is the copied final Abstract, left is still alive but useless => free left
-                    // dropping to use the Bottom guard
-                    std::mem::drop(Abstract { elina_abstract0: left_res });
-                    join_res
-                }
+                let left_res = left.meet_internal(man, other, false);
+
+                // We are allocating an Abstract of `other MEETCOPY left`, because this will only serve
+                // as join partner for `right`. Additionally, this correctly frees the temporary
+                // abstract0 it made at the end of the function (Drop trait).
+                let abs_tmp = Abstract { elina_abstract0: left_res };
+
+                // right_res will be our result abstract0, if `destructive` is true we modify `other`,
+                // otherwise we allocate a new one.
+                let right_res = right.meet_internal(man, other, destructive);
+
+                // We are joining right_res with abs_tmp mutably, since right_res is already either
+                // a) a new copy if `destructive` is false
+                // b) the mutated `other`, which is fine since `destructive` must be true.
+                let join_res = abs_tmp.join_internal(man, right_res,true);
+                join_res
             },
             Unop(Not, inner) => inner.negation().meet_internal(man, other, destructive),
         }
