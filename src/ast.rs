@@ -277,6 +277,56 @@ impl Drop for Texpr {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum HconsBinop {
+    Or,
+    And,
+}
+
+impl HconsBinop {
+    pub fn negation(&self) -> HconsBinop {
+        use HconsBinop::*;
+
+        match self {
+            Or => And,
+            And => Or,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum HconsUnop {
+    Not,
+}
+
+/// A multi-level constraint.
+#[derive(Clone)]
+pub enum Hcons {
+    /// Wraps a [`Tcons`].
+    Leaf(Tcons),
+    /// A binary operation on two constraints.
+    Binop(HconsBinop, Box<Hcons>, Box<Hcons>),
+    /// A unary operation on a constraint.
+    Unop(HconsUnop, Box<Hcons>),
+}
+
+impl Hcons {
+    pub fn negation(&self) -> Hcons {
+        use Hcons::*;
+
+        match self {
+            Leaf(tcons) => tcons.negation(),
+            Binop(bop, left, right) =>
+                Binop(
+                    bop.negation(),
+                    Box::new(left.negation()),
+                    Box::new(right.negation())
+                ),
+            Unop(HconsUnop::Not, inner) => inner.clone(),
+        }
+    }
+}
+
 /// A tree-based constraint.
 ///
 /// Wraps `elina_tcons0_t`.
@@ -728,6 +778,29 @@ pub trait Meetable {
             Abstract {
                 elina_abstract0: new_abs_ptr,
             }
+        }
+    }
+}
+
+impl Meetable for Hcons {
+    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+        use Hcons::*;
+        use HconsBinop::*;
+        use HconsUnop::*;
+
+        match self {
+            Leaf(tcons) => tcons.meet_internal(man, other, destructive),
+            Binop(And, left, right) => {
+                // first do `destructive` meet
+                let left_res = left.meet_internal(man, other, destructive);
+                let mut left_abs = Abstract { elina_abstract0: left_res };
+                // then do mutating on result
+                right.meet_internal(man, &left_abs, true)
+            },
+            BinOp(Or, left, right) => {
+                todo!("Hcons Or needs concept of Join")
+            },
+            Unop(Not, inner) => inner.negation().meet_internal(man, other, destructive)
         }
     }
 }
