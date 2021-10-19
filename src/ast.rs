@@ -4,9 +4,23 @@ use std::ffi::{CStr, CString};
 use std::fmt::{Debug, Display, Formatter, Write};
 use std::ops::Deref;
 use std::ptr::{null_mut, slice_from_raw_parts};
-use elina_sys::{__gmpq_get_d, __gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_bound_linexpr, elina_abstract0_bound_texpr, elina_abstract0_free, elina_abstract0_meet, elina_abstract0_meet_lincons_array, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_dim_t, elina_dimension_t, elina_interval_free, elina_interval_t, elina_intlinearize_texpr0_intlinear, elina_lincons0_array_clear, elina_lincons0_array_print, elina_linexpr0_t, elina_manager_free, elina_manager_t, elina_scalar_discr_t_ELINA_SCALAR_MPQ, elina_scalar_free, elina_scalar_t, elina_tcons0_array_clear, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, FILE, free, opt_pk_manager_alloc, true_};
 
-pub use elina_sys::{TexprBinop, TexprUnop, ConsTyp};
+pub use elina_sys::{ConsTyp, TexprBinop, TexprUnop};
+use elina_sys::{
+    __gmpq_get_d, __gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool,
+    elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension,
+    elina_abstract0_bound_linexpr, elina_abstract0_bound_texpr, elina_abstract0_free,
+    elina_abstract0_meet, elina_abstract0_meet_lincons_array, elina_abstract0_meet_tcons_array,
+    elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array,
+    elina_abstract0_top, elina_constyp_t, elina_dim_t, elina_dimension_t, elina_interval_free,
+    elina_interval_t, elina_intlinearize_texpr0_intlinear, elina_lincons0_array_clear,
+    elina_lincons0_array_print, elina_linexpr0_t, elina_manager_free, elina_manager_t,
+    elina_scalar_discr_t_ELINA_SCALAR_MPQ, elina_scalar_free, elina_scalar_t,
+    elina_tcons0_array_clear, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop,
+    elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free,
+    elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO,
+    elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_, FILE,
+};
 
 /// Provides the implementations of different abstract domains.
 pub trait Manager {
@@ -25,7 +39,7 @@ impl Default for OptPkManager {
     fn default() -> Self {
         unsafe {
             OptPkManager {
-                elina_manager: opt_pk_manager_alloc(false_)
+                elina_manager: opt_pk_manager_alloc(false_),
             }
         }
     }
@@ -54,10 +68,15 @@ pub struct Environment {
 impl Environment {
     /// Returns an `Environment` consisting of the variables in the ordered vector `int_names`.
     pub fn new<S>(int_names: Vec<S>) -> Environment
-        where S: AsRef<str>
+    where
+        S: AsRef<str>,
     {
         Environment {
-            var_to_dim: int_names.into_iter().enumerate().map(|(i, v)| (v.as_ref().to_owned(), i as u32)).collect()
+            var_to_dim: int_names
+                .into_iter()
+                .enumerate()
+                .map(|(i, v)| (v.as_ref().to_owned(), i as u32))
+                .collect(),
         }
     }
 }
@@ -70,7 +89,6 @@ impl Environment {
 //     Unop(),
 //     Binop(TexprBinop, Box<>),
 // }
-
 
 /// A tree-based expression.
 ///
@@ -88,7 +106,7 @@ impl Texpr {
     pub fn int(i: i64) -> Texpr {
         unsafe {
             Texpr {
-                elina_texpr0: elina_texpr0_cst_scalar_int(i)
+                elina_texpr0: elina_texpr0_cst_scalar_int(i),
             }
         }
     }
@@ -99,7 +117,7 @@ impl Texpr {
     pub fn var<S: Borrow<str>>(env: &Environment, s: S) -> Texpr {
         unsafe {
             Texpr {
-                elina_texpr0: elina_texpr0_dim(env.var_to_dim[s.borrow()])
+                elina_texpr0: elina_texpr0_dim(env.var_to_dim[s.borrow()]),
             }
         }
     }
@@ -108,7 +126,7 @@ impl Texpr {
     pub fn var_dim(dim: u32) -> Texpr {
         unsafe {
             Texpr {
-                elina_texpr0: elina_texpr0_dim(dim)
+                elina_texpr0: elina_texpr0_dim(dim),
             }
         }
     }
@@ -116,7 +134,6 @@ impl Texpr {
     /// Returns a `Texpr` representing the binary expression `left op right`.
     pub fn binop(op: TexprBinop, left: Texpr, right: Texpr) -> Texpr {
         unsafe {
-
             let res = Texpr {
                 elina_texpr0: elina_texpr0_binop(
                     op as elina_texpr_op_t,
@@ -124,7 +141,7 @@ impl Texpr {
                     right.elina_texpr0,
                     elina_texpr_rtype_t_ELINA_RTYPE_INT,
                     elina_texpr_rdir_t_ELINA_RDIR_ZERO,
-                )
+                ),
             };
 
             std::mem::forget(left);
@@ -143,7 +160,7 @@ impl Texpr {
                     inner.elina_texpr0,
                     elina_texpr_rtype_t_ELINA_RTYPE_INT,
                     elina_texpr_rdir_t_ELINA_RDIR_ZERO,
-                )
+                ),
             };
 
             std::mem::forget(inner);
@@ -261,7 +278,7 @@ impl Clone for Texpr {
     fn clone(&self) -> Self {
         unsafe {
             Texpr {
-                elina_texpr0: elina_texpr0_copy(self.elina_texpr0)
+                elina_texpr0: elina_texpr0_copy(self.elina_texpr0),
             }
         }
     }
@@ -314,7 +331,7 @@ impl Clone for Tcons {
         unsafe {
             Tcons::from_raw(
                 elina_texpr0_copy((*self.elina_tcons0).texpr0),
-                (*self.elina_tcons0).constyp
+                (*self.elina_tcons0).constyp,
             )
         }
     }
@@ -347,7 +364,11 @@ impl Abstract {
     pub fn top<M: Manager>(man: &M, env: &Environment) -> Abstract {
         unsafe {
             Abstract {
-                elina_abstract0: elina_abstract0_top(man.as_manager_ptr(), env.var_to_dim.len() as u64, 0)
+                elina_abstract0: elina_abstract0_top(
+                    man.as_manager_ptr(),
+                    env.var_to_dim.len() as u64,
+                    0,
+                ),
             }
         }
     }
@@ -356,7 +377,11 @@ impl Abstract {
     pub fn bottom<M: Manager>(man: &M, env: &Environment) -> Abstract {
         unsafe {
             Abstract {
-                elina_abstract0: elina_abstract0_bottom(man.as_manager_ptr(), env.var_to_dim.len() as u64, 0)
+                elina_abstract0: elina_abstract0_bottom(
+                    man.as_manager_ptr(),
+                    env.var_to_dim.len() as u64,
+                    0,
+                ),
             }
         }
     }
@@ -364,9 +389,11 @@ impl Abstract {
     /// Returns `true` if `self` satisfies `tcons`, i.e. `self` ⊆ `tcons`.
     pub fn satisfy<M: Manager>(&self, man: &M, tcons: &Tcons) -> bool {
         unsafe {
-            bool_from_c_bool(
-                elina_abstract0_sat_tcons(man.as_manager_ptr(), self.elina_abstract0, tcons.elina_tcons0)
-            )
+            bool_from_c_bool(elina_abstract0_sat_tcons(
+                man.as_manager_ptr(),
+                self.elina_abstract0,
+                tcons.elina_tcons0,
+            ))
         }
     }
 
@@ -390,7 +417,13 @@ impl Abstract {
     /// This function can be used to model mutable variables.
     ///
     /// See the copying counterpart at [`Abstract::assign_copy`].
-    pub fn assign<M: Manager, S: Borrow<str>>(&mut self, man: &M, env: &Environment, var: S, texpr: &Texpr) {
+    pub fn assign<M: Manager, S: Borrow<str>>(
+        &mut self,
+        man: &M,
+        env: &Environment,
+        var: S,
+        texpr: &Texpr,
+    ) {
         unsafe {
             elina_abstract0_assign_texpr(
                 man.as_manager_ptr(),
@@ -398,7 +431,7 @@ impl Abstract {
                 self.elina_abstract0,
                 env.var_to_dim[var.borrow()],
                 texpr.elina_texpr0,
-                std::ptr::null_mut()
+                std::ptr::null_mut(),
             );
         }
     }
@@ -411,7 +444,7 @@ impl Abstract {
     pub fn assign_copy<M, S>(&self, man: &M, env: &Environment, var: S, texpr: &Texpr) -> Abstract
     where
         M: Manager,
-        S: Borrow<str>
+        S: Borrow<str>,
     {
         unsafe {
             Abstract {
@@ -421,8 +454,8 @@ impl Abstract {
                     self.elina_abstract0,
                     env.var_to_dim[var.borrow()],
                     texpr.elina_texpr0,
-                    std::ptr::null_mut()
-                    )
+                    std::ptr::null_mut(),
+                ),
             }
         }
     }
@@ -431,7 +464,7 @@ impl Abstract {
     pub fn get_bounds<M, S>(&self, man: &M, env: &Environment, var: S) -> Interval
     where
         M: Manager,
-        S: Borrow<str>
+        S: Borrow<str>,
     {
         unsafe {
             // the OPT_PK manager does not support getting a texpr's bound, thus we need a workaround
@@ -452,11 +485,8 @@ impl Abstract {
             // );
 
             let dim = env.var_to_dim[var.borrow()];
-            let interval_ptr = elina_abstract0_bound_dimension(
-                man.as_manager_ptr(),
-                self.elina_abstract0,
-                dim
-            );
+            let interval_ptr =
+                elina_abstract0_bound_dimension(man.as_manager_ptr(), self.elina_abstract0, dim);
 
             let inf = *(*interval_ptr).inf;
             let inf = *inf.val.mpq;
@@ -465,8 +495,24 @@ impl Abstract {
 
             let mut result_denom = 0u64;
             let mut result_enum = 0u64;
-            __gmpz_export(&mut result_denom as *mut _ as _, null_mut(), -1, 8, 0, 0, &inf_denom);
-            __gmpz_export(&mut result_enum as *mut _ as _, null_mut(), -1, 8, 0, 0, &inf_enum);
+            __gmpz_export(
+                &mut result_denom as *mut _ as _,
+                null_mut(),
+                -1,
+                8,
+                0,
+                0,
+                &inf_denom,
+            );
+            __gmpz_export(
+                &mut result_enum as *mut _ as _,
+                null_mut(),
+                -1,
+                8,
+                0,
+                0,
+                &inf_enum,
+            );
 
             let inf_str_ptr = __gmpq_get_str(null_mut(), 10, &inf);
             let inf_str = CStr::from_ptr(inf_str_ptr);
@@ -488,9 +534,24 @@ impl Abstract {
 
             let mut result_denom = 0u64;
             let mut result_enum = 0u64;
-            __gmpz_export(&mut result_denom as *mut _ as _, null_mut(), -1, 8, 0, 0, &sup_denom);
-            __gmpz_export(&mut result_enum as *mut _ as _, null_mut(), -1, 8, 0, 0, &sup_enum);
-
+            __gmpz_export(
+                &mut result_denom as *mut _ as _,
+                null_mut(),
+                -1,
+                8,
+                0,
+                0,
+                &sup_denom,
+            );
+            __gmpz_export(
+                &mut result_enum as *mut _ as _,
+                null_mut(),
+                -1,
+                8,
+                0,
+                0,
+                &sup_enum,
+            );
 
             let sup_str_ptr = __gmpq_get_str(null_mut(), 10, &sup);
             let sup_str = CStr::from_ptr(sup_str_ptr);
@@ -502,7 +563,6 @@ impl Abstract {
                 Bound::Num(sup_str.to_str().unwrap().parse().unwrap())
             };
             free(sup_str_ptr as *mut _);
-
 
             // println!("sup: {:?}", sup);
 
@@ -519,16 +579,22 @@ impl Abstract {
     /// Prints `self` to `stdout`.
     pub fn print<M: Manager>(&self, man: &M, env: &Environment) {
         unsafe {
-            let rev_env = env.var_to_dim.iter().map(|(k, v)| (v.to_owned(), k.to_owned())).collect::<HashMap<elina_dim_t, String>>();
+            let rev_env = env
+                .var_to_dim
+                .iter()
+                .map(|(k, v)| (v.to_owned(), k.to_owned()))
+                .collect::<HashMap<elina_dim_t, String>>();
 
             let mut names = (0..env.var_to_dim.len() as u32)
                 .into_iter()
-                .map(|d| CString::new(rev_env[&d].as_str()).unwrap().into_raw()).collect::<Vec<_>>();
+                .map(|d| CString::new(rev_env[&d].as_str()).unwrap().into_raw())
+                .collect::<Vec<_>>();
 
             let names_ptr = names.as_mut_ptr();
             // std::mem::forget(names);
 
-            let mut lincons_arr = elina_abstract0_to_lincons_array(man.as_manager_ptr(), self.elina_abstract0);
+            let mut lincons_arr =
+                elina_abstract0_to_lincons_array(man.as_manager_ptr(), self.elina_abstract0);
             // println!("Reached");
             // println!("{:?}", CString::from_raw(*names_ptr));
             // println!("{:?}", lincons_arr.p);
@@ -537,7 +603,9 @@ impl Abstract {
             elina_lincons0_array_clear(&mut lincons_arr);
             std::mem::drop(lincons_arr);
 
-            names.into_iter().for_each(|ptr| std::mem::drop(CString::from_raw(ptr)));
+            names
+                .into_iter()
+                .for_each(|ptr| std::mem::drop(CString::from_raw(ptr)));
         }
     }
 }
@@ -604,7 +672,12 @@ pub trait Meetable {
     /// This is unsafe, because `other` is internally mutated exactly if `destructive` is true.
     /// The caller must ensure that they have mutable permissions for `other` when calling this
     /// function with `destructive` set to true.
-    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+    unsafe fn meet_internal<M: Manager>(
+        &self,
+        man: &M,
+        other: &Abstract,
+        destructive: bool,
+    ) -> *mut elina_abstract0_t {
         panic!("Meetable::meet_internal's definition must be overridden if you don't provide implementations for meet_with and meet_with_copy");
     }
 
@@ -619,17 +692,25 @@ pub trait Meetable {
         unsafe {
             let new_abs_ptr = self.meet_internal(man, other, false);
             Abstract {
-                elina_abstract0: new_abs_ptr
+                elina_abstract0: new_abs_ptr,
             }
         }
     }
 }
 
 impl Meetable for [&Tcons] {
-    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+    unsafe fn meet_internal<M: Manager>(
+        &self,
+        man: &M,
+        other: &Abstract,
+        destructive: bool,
+    ) -> *mut elina_abstract0_t {
         unsafe {
             let mut tcons_arr = elina_tcons0_array_make(0);
-            let mut ptrs = self.iter().map(|tcons| *tcons.elina_tcons0).collect::<Vec<_>>();
+            let mut ptrs = self
+                .iter()
+                .map(|tcons| *tcons.elina_tcons0)
+                .collect::<Vec<_>>();
             tcons_arr.p = ptrs.as_mut_ptr();
             tcons_arr.size = self.len() as u64;
             std::mem::forget(ptrs);
@@ -638,7 +719,7 @@ impl Meetable for [&Tcons] {
                 man.as_manager_ptr(),
                 c_bool_from_bool(destructive),
                 other.elina_abstract0,
-                &mut tcons_arr
+                &mut tcons_arr,
             );
 
             std::mem::drop(Vec::from_raw_parts(tcons_arr.p, self.len(), self.len()));
@@ -649,25 +730,45 @@ impl Meetable for [&Tcons] {
 }
 
 impl<const N: usize> Meetable for [&Tcons; N] {
-    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+    unsafe fn meet_internal<M: Manager>(
+        &self,
+        man: &M,
+        other: &Abstract,
+        destructive: bool,
+    ) -> *mut elina_abstract0_t {
         self[..].meet_internal(man, other, destructive)
     }
 }
 
 impl Meetable for Vec<&Tcons> {
-    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+    unsafe fn meet_internal<M: Manager>(
+        &self,
+        man: &M,
+        other: &Abstract,
+        destructive: bool,
+    ) -> *mut elina_abstract0_t {
         self[..].meet_internal(man, other, destructive)
     }
 }
 
 impl Meetable for Tcons {
-    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+    unsafe fn meet_internal<M: Manager>(
+        &self,
+        man: &M,
+        other: &Abstract,
+        destructive: bool,
+    ) -> *mut elina_abstract0_t {
         [self].meet_internal(man, other, destructive)
     }
 }
 
 impl Meetable for Abstract {
-    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+    unsafe fn meet_internal<M: Manager>(
+        &self,
+        man: &M,
+        other: &Abstract,
+        destructive: bool,
+    ) -> *mut elina_abstract0_t {
         elina_abstract0_meet(
             man.as_manager_ptr(),
             c_bool_from_bool(destructive),
@@ -690,7 +791,6 @@ impl Debug for Interval {
         f.write_str(",")?;
         Debug::fmt(&self.1, f)?;
         f.write_str("]")
-
     }
 }
 
@@ -717,18 +817,11 @@ mod tests {
     use crate::ast::*;
 
     fn gen_env(num: usize) -> Environment {
-        Environment::new(
-            (0..num).into_iter().map(|i| format!("x{}", i)).collect()
-        )
+        Environment::new((0..num).into_iter().map(|i| format!("x{}", i)).collect())
     }
 
     #[test]
     fn abstract_meet_tcons() {
         let env = gen_env(2);
-
-
-
-
-
     }
 }
