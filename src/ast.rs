@@ -860,21 +860,6 @@ impl Meetable for Hcons {
                     let res = right.meet_internal(man, interim, true);
                     res
                 }
-                // // first do `destructive` meet
-                // let left_res = left.meet_internal(man, other, destructive);
-                // let mut left_abs = Abstract { elina_abstract0: left_res };
-                // // then do mutating meet on result
-                // println!("reached binop");
-                // dbg!(destructive);
-                // // let meet_ptr = right.meet_internal(man, &left_abs, true);
-                // // println!("meet result fine");
-                // // std::mem::forget(left_abs);
-                // // meet_ptr
-                // left_abs.meet(man, &**right);
-                // let meet_ptr = left_abs.elina_abstract0;
-                // println!("meet result fine");
-                // std::mem::forget(left_abs);
-                // meet_ptr
             },
             Binop(Or, left, right) => {
                 if destructive {
@@ -882,30 +867,18 @@ impl Meetable for Hcons {
                     let right_res = right.meet_internal(man, other, true);
                     let join_res = elina_abstract0_join(man.as_manager_ptr(), true_, right_res, left_res);
                     // right has been mutated, left is still alive but useless => free left
-                    // dropping to use the bottom guard
+                    // dropping to use the Bottom guard
                     std::mem::drop(Abstract { elina_abstract0: left_res });
                     join_res
                 } else {
                     let left_res = left.meet_internal(man, other, false);
                     let right_res = right.meet_internal(man, other, false);
                     let join_res = elina_abstract0_join(man.as_manager_ptr(), true_, right_res, left_res);
-                    // right is the copied final abs, left is still alive but useless => free left
-                    // dropping to use the bottom guard
+                    // right is the copied final Abstract, left is still alive but useless => free left
+                    // dropping to use the Bottom guard
                     std::mem::drop(Abstract { elina_abstract0: left_res });
                     join_res
                 }
-                // // TODO: Check this block for memory leaks and interactions (mutating and non-mutating)
-                // let left_ptr = left.meet_internal(man, other, false);
-                // let left_abs = Abstract { elina_abstract0: left_ptr };
-                //
-                // let right_ptr = right.meet_internal(man, other, destructive);
-                // let mut right_abs = Abstract { elina_abstract0: right_ptr };
-                //
-                // // then do mutating join on result
-                // let join_ptr = left_abs.join_internal(man, &right_abs, true);
-                // // forget right_abs, because it's internal pointer is the result of this function
-                // std::mem::forget(right_abs);
-                // join_ptr
             },
             Unop(Not, inner) => inner.negation().meet_internal(man, other, destructive),
         }
