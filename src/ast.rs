@@ -709,7 +709,7 @@ pub trait Meetable {
     unsafe fn meet_internal<M: Manager>(
         &self,
         man: &M,
-        other: &Abstract,
+        other: *mut elina_abstract0_t,
         destructive: bool,
     ) -> *mut elina_abstract0_t {
         panic!("Meetable::meet_internal's definition must be overridden if you don't provide implementations for meet_with and meet_with_copy");
@@ -719,12 +719,12 @@ pub trait Meetable {
     fn meet_with<M: Manager>(&self, man: &M, other: &mut Abstract) {
         unsafe {
             // Mutates "other"
-            self.meet_internal(man, other, true);
+            other.elina_abstract0 = self.meet_internal(man, other.elina_abstract0, true);
         }
     }
     fn meet_with_copy<M: Manager>(&self, man: &M, other: &Abstract) -> Abstract {
         unsafe {
-            let new_abs_ptr = self.meet_internal(man, other, false);
+            let new_abs_ptr = self.meet_internal(man, other.elina_abstract0, false);
             Abstract {
                 elina_abstract0: new_abs_ptr,
             }
@@ -736,7 +736,7 @@ impl Meetable for [&Tcons] {
     unsafe fn meet_internal<M: Manager>(
         &self,
         man: &M,
-        other: &Abstract,
+        other: *mut elina_abstract0_t,
         destructive: bool,
     ) -> *mut elina_abstract0_t {
         let mut tcons_arr = elina_tcons0_array_make(0);
@@ -751,7 +751,7 @@ impl Meetable for [&Tcons] {
         let res_abs_ptr = elina_abstract0_meet_tcons_array(
             man.as_manager_ptr(),
             c_bool_from_bool(destructive),
-            other.elina_abstract0,
+            other,
             &mut tcons_arr,
         );
 
@@ -765,7 +765,7 @@ impl<const N: usize> Meetable for [&Tcons; N] {
     unsafe fn meet_internal<M: Manager>(
         &self,
         man: &M,
-        other: &Abstract,
+        other: *mut elina_abstract0_t,
         destructive: bool,
     ) -> *mut elina_abstract0_t {
         self[..].meet_internal(man, other, destructive)
@@ -776,7 +776,7 @@ impl Meetable for Vec<&Tcons> {
     unsafe fn meet_internal<M: Manager>(
         &self,
         man: &M,
-        other: &Abstract,
+        other: *mut elina_abstract0_t,
         destructive: bool,
     ) -> *mut elina_abstract0_t {
         self[..].meet_internal(man, other, destructive)
@@ -787,7 +787,7 @@ impl Meetable for Tcons {
     unsafe fn meet_internal<M: Manager>(
         &self,
         man: &M,
-        other: &Abstract,
+        other: *mut elina_abstract0_t,
         destructive: bool,
     ) -> *mut elina_abstract0_t {
         [self].meet_internal(man, other, destructive)
@@ -798,13 +798,13 @@ impl Meetable for Abstract {
     unsafe fn meet_internal<M: Manager>(
         &self,
         man: &M,
-        other: &Abstract,
+        other: *mut elina_abstract0_t,
         destructive: bool,
     ) -> *mut elina_abstract0_t {
         elina_abstract0_meet(
             man.as_manager_ptr(),
             c_bool_from_bool(destructive),
-            other.elina_abstract0,
+            other,
             self.elina_abstract0,
         )
     }
@@ -841,7 +841,7 @@ pub trait Joinable {
     unsafe fn join_internal<M: Manager>(
         &self,
         man: &M,
-        other: &Abstract,
+        other: *mut elina_abstract0_t,
         destructive: bool,
     ) -> *mut elina_abstract0_t {
         panic!("Joinable::join_internal's definition must be overridden if you don't provide implementations for join_with and join_with_copy");
@@ -851,12 +851,12 @@ pub trait Joinable {
     fn join_with<M: Manager>(&self, man: &M, other: &mut Abstract) {
         unsafe {
             // Mutates "other"
-            self.join_internal(man, other, true);
+            other.elina_abstract0 = self.join_internal(man, other.elina_abstract0, true);
         }
     }
     fn join_with_copy<M: Manager>(&self, man: &M, other: &Abstract) -> Abstract {
         unsafe {
-            let new_abs_ptr = self.join_internal(man, other, false);
+            let new_abs_ptr = self.join_internal(man, other.elina_abstract0, false);
             Abstract {
                 elina_abstract0: new_abs_ptr,
             }
@@ -868,13 +868,13 @@ impl Joinable for Abstract {
     unsafe fn join_internal<M: Manager>(
         &self,
         man: &M,
-        other: &Abstract,
+        other: *mut elina_abstract0_t,
         destructive: bool,
     ) -> *mut elina_abstract0_t {
         elina_abstract0_join(
             man.as_manager_ptr(),
             c_bool_from_bool(destructive),
-            other.elina_abstract0,
+            other,
             self.elina_abstract0,
         )
     }
