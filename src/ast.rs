@@ -5,7 +5,7 @@ use std::fmt::{Debug, Formatter};
 use std::ptr::null_mut;
 
 pub use elina_sys::{ConsTyp, TexprBinop, TexprUnop};
-use elina_sys::{__gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_copy, elina_abstract0_free, elina_abstract0_is_bottom, elina_abstract0_is_top, elina_abstract0_join, elina_abstract0_join_array, elina_abstract0_meet, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_constyp_t_ELINA_CONS_DISEQ, elina_constyp_t_ELINA_CONS_EQ, elina_constyp_t_ELINA_CONS_SUPEQ, elina_dim_t, elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_};
+use elina_sys::{__gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_copy, elina_abstract0_free, elina_abstract0_join, elina_abstract0_join_array, elina_abstract0_meet, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_constyp_t_ELINA_CONS_DISEQ, elina_constyp_t_ELINA_CONS_EQ, elina_constyp_t_ELINA_CONS_SUPEQ, elina_dim_t, elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_};
 
 /// Provides the implementations of different abstract domains.
 pub trait Manager {
@@ -311,18 +311,42 @@ pub enum Hcons {
 }
 
 impl Hcons {
+    pub fn and(left: Hcons, right: Hcons) -> Hcons {
+        Hcons::Binop(
+            HconsBinop::And,
+            Box::new(left),
+            Box::new(right)
+        )
+    }
+
+    pub fn or(left: Hcons, right: Hcons) -> Hcons {
+        Hcons::Binop(
+            HconsBinop::Or,
+            Box::new(left),
+            Box::new(right)
+        )
+    }
+
+    pub fn not(inner: Hcons) -> Hcons {
+        Hcons::Unop(HconsUnop::Not, Box::new(inner))
+    }
+
+    pub fn leaf(tcons: Tcons) -> Hcons {
+        Hcons::Leaf(tcons)
+    }
+
     pub fn negation(&self) -> Hcons {
         use Hcons::*;
 
         match self {
-            Leaf(tcons) => tcons.negation(),
+            Leaf(tcons) => Leaf(tcons.negation()),
             Binop(bop, left, right) =>
                 Binop(
                     bop.negation(),
                     Box::new(left.negation()),
                     Box::new(right.negation())
                 ),
-            Unop(HconsUnop::Not, inner) => inner.clone(),
+            Unop(HconsUnop::Not, inner) => *inner.clone(),
         }
     }
 }
@@ -359,6 +383,37 @@ impl Tcons {
         };
         res
     }
+
+    pub fn negation(&self) -> Tcons {
+        unsafe {
+            let cloned = self.clone();
+            match (*self.elina_tcons0).constyp {
+                x if x == elina_constyp_t_ELINA_CONS_EQ => {
+                    (*cloned.elina_tcons0).constyp = ConsTyp::DISEQ as elina_constyp_t;
+                    cloned
+                },
+                x if x == elina_constyp_t_ELINA_CONS_DISEQ => {
+                    (*cloned.elina_tcons0).constyp = ConsTyp::EQ as elina_constyp_t;
+                    cloned
+                }
+                x if x == elina_constyp_t_ELINA_CONS_SUPEQ => {
+                    let texpr = Texpr { elina_texpr0: (*cloned.elina_tcons0).texpr0 };
+                    // std::mem::forget(cloned);
+
+                    // not (texpr >= 0)
+                    // texpr < 0
+                    // -texpr > 0
+                    // -texpr - 1 >= 0
+
+                    let new_texpr = Texpr::int(-1) * texpr - Texpr::int(1);
+                    (*cloned.elina_tcons0).texpr0 = new_texpr.elina_texpr0;
+                    std::mem::forget(new_texpr);
+                    cloned
+                }
+                _ => todo!()
+            }
+        }
+    }
 }
 
 impl Clone for Tcons {
@@ -373,6 +428,7 @@ impl Clone for Tcons {
 }
 
 impl Drop for Tcons {
+    // TODO: idea, add NULL pointer check to all Drop, then we don't need to use as many mem::forget's
     fn drop(&mut self) {
         unsafe {
             let tcons0 = Box::from_raw(self.elina_tcons0);
