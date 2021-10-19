@@ -1,11 +1,9 @@
-use std::ops::Deref;
 use elina::ast::*;
 
 fn main() {
     let env = Environment::new(vec!["x", "y", "z"]);
     let man = OptPkManager::default();
 
-    let zero = Texpr::int(0);
     let x = Texpr::var(&env, "x");
     let y = Texpr::var(&env, "y");
     let z = Texpr::var(&env, "z");
@@ -35,7 +33,7 @@ fn main() {
     println!("meet satisfies y < 18: {}", meet.satisfy(&man, &y.clone().lt(Texpr::int(18))));
     println!();
 
-    let mut meet_assn = meet.assign_copy(&man, &env, "z", &(y.clone() + Texpr::int(2)));
+    let meet_assn = meet.assign_copy(&man, &env, "z", &(y.clone() + Texpr::int(2)));
     println!("meet_assn (z = y + 2):");
     meet_assn.print(&man, &env);
     println!("meet_assn satisfies z < 21: {}", meet_assn.satisfy(&man, &z.clone().lt(Texpr::int(21))));

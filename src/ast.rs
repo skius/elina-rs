@@ -1,25 +1,21 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
-use std::fmt::{Debug, Display, Formatter, Write};
-use std::ops::Deref;
-use std::ptr::{null_mut, slice_from_raw_parts};
+use std::fmt::{Debug, Formatter};
+use std::ptr::null_mut;
 
 pub use elina_sys::{ConsTyp, TexprBinop, TexprUnop};
 use elina_sys::{
-    __gmpq_get_d, __gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool,
+    __gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool,
     elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension,
-    elina_abstract0_bound_linexpr, elina_abstract0_bound_texpr, elina_abstract0_free,
-    elina_abstract0_meet, elina_abstract0_meet_lincons_array, elina_abstract0_meet_tcons_array,
+    elina_abstract0_free, elina_abstract0_meet, elina_abstract0_meet_tcons_array,
     elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array,
-    elina_abstract0_top, elina_constyp_t, elina_dim_t, elina_dimension_t, elina_interval_free,
-    elina_interval_t, elina_intlinearize_texpr0_intlinear, elina_lincons0_array_clear,
-    elina_lincons0_array_print, elina_linexpr0_t, elina_manager_free, elina_manager_t,
-    elina_scalar_discr_t_ELINA_SCALAR_MPQ, elina_scalar_free, elina_scalar_t,
-    elina_tcons0_array_clear, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop,
+    elina_abstract0_top, elina_constyp_t, elina_dim_t, elina_interval_free,
+    elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t,
+    elina_scalar_free, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop,
     elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free,
     elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO,
-    elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_, FILE,
+    elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_,
 };
 
 /// Provides the implementations of different abstract domains.
@@ -314,7 +310,7 @@ impl Tcons {
     }
 
     unsafe fn from_raw(texpr0: *mut elina_texpr0_t, cons_typ: elina_constyp_t) -> Tcons {
-        let mut inner_tcons = Box::new(elina_tcons0_t {
+        let inner_tcons = Box::new(elina_tcons0_t {
             texpr0,
             constyp: cons_typ,
             scalar: 0 as *mut elina_scalar_t, // doesn't support EQMOD
@@ -672,6 +668,7 @@ pub trait Meetable {
     /// This is unsafe, because `other` is internally mutated exactly if `destructive` is true.
     /// The caller must ensure that they have mutable permissions for `other` when calling this
     /// function with `destructive` set to true.
+    #[allow(unused_variables)]
     unsafe fn meet_internal<M: Manager>(
         &self,
         man: &M,
@@ -705,27 +702,25 @@ impl Meetable for [&Tcons] {
         other: &Abstract,
         destructive: bool,
     ) -> *mut elina_abstract0_t {
-        unsafe {
-            let mut tcons_arr = elina_tcons0_array_make(0);
-            let mut ptrs = self
-                .iter()
-                .map(|tcons| *tcons.elina_tcons0)
-                .collect::<Vec<_>>();
-            tcons_arr.p = ptrs.as_mut_ptr();
-            tcons_arr.size = self.len() as u64;
-            std::mem::forget(ptrs);
+        let mut tcons_arr = elina_tcons0_array_make(0);
+        let mut ptrs = self
+            .iter()
+            .map(|tcons| *tcons.elina_tcons0)
+            .collect::<Vec<_>>();
+        tcons_arr.p = ptrs.as_mut_ptr();
+        tcons_arr.size = self.len() as u64;
+        std::mem::forget(ptrs);
 
-            let res_abs_ptr = elina_abstract0_meet_tcons_array(
-                man.as_manager_ptr(),
-                c_bool_from_bool(destructive),
-                other.elina_abstract0,
-                &mut tcons_arr,
-            );
+        let res_abs_ptr = elina_abstract0_meet_tcons_array(
+            man.as_manager_ptr(),
+            c_bool_from_bool(destructive),
+            other.elina_abstract0,
+            &mut tcons_arr,
+        );
 
-            std::mem::drop(Vec::from_raw_parts(tcons_arr.p, self.len(), self.len()));
+        std::mem::drop(Vec::from_raw_parts(tcons_arr.p, self.len(), self.len()));
 
-            res_abs_ptr
-        }
+        res_abs_ptr
     }
 }
 
