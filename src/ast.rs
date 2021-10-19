@@ -397,6 +397,21 @@ impl Abstract {
         other.meet_with_copy(man, self)
     }
 
+    /// Performs the join operation on the lattice with `self` and `other`, and stores the
+    /// result in `self`.
+    ///
+    /// See the copying counterpart at [`Abstract::join_copy`].
+    pub fn join<M: Manager, JT: Joinable + ?Sized>(&mut self, man: &M, other: &JT) {
+        other.join_with(man, self);
+    }
+
+    /// Returns the result of the join operation on the lattice with `self` and `other`.
+    ///
+    /// See the mutating counterpart at [`Abstract::join`].
+    pub fn join_copy<M: Manager, JT: Joinable + ?Sized>(&self, man: &M, other: &JT) -> Abstract {
+        other.join_with_copy(man, self)
+    }
+
     /// Assigns `var` to `texpr` in `self`.
     ///
     /// This function can be used to model mutable variables.
