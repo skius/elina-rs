@@ -5,19 +5,7 @@ use std::fmt::{Debug, Formatter};
 use std::ptr::null_mut;
 
 pub use elina_sys::{ConsTyp, TexprBinop, TexprUnop};
-use elina_sys::{
-    __gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool,
-    elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension,
-    elina_abstract0_copy, elina_abstract0_free, elina_abstract0_meet,
-    elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t,
-    elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_dim_t,
-    elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print,
-    elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_t,
-    elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy,
-    elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t,
-    elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO,
-    elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_,
-};
+use elina_sys::{__gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_copy, elina_abstract0_free, elina_abstract0_join, elina_abstract0_join_array, elina_abstract0_meet, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_dim_t, elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_};
 
 /// Provides the implementations of different abstract domains.
 pub trait Manager {
@@ -409,6 +397,21 @@ impl Abstract {
         other.meet_with_copy(man, self)
     }
 
+    /// Performs the join operation on the lattice with `self` and `other`, and stores the
+    /// result in `self`.
+    ///
+    /// See the copying counterpart at [`Abstract::join_copy`].
+    pub fn join<M: Manager, JT: Joinable + ?Sized>(&mut self, man: &M, other: &JT) {
+        other.join_with(man, self);
+    }
+
+    /// Returns the result of the join operation on the lattice with `self` and `other`.
+    ///
+    /// See the mutating counterpart at [`Abstract::join`].
+    pub fn join_copy<M: Manager, JT: Joinable + ?Sized>(&self, man: &M, other: &JT) -> Abstract {
+        other.join_with_copy(man, self)
+    }
+
     /// Assigns `var` to `texpr` in `self`.
     ///
     /// This function can be used to model mutable variables.
@@ -786,6 +789,77 @@ impl Meetable for Abstract {
         )
     }
 }
+
+// TODO: think about what we can actually join with. To join with tcons, do we need to do `(top meet tcons) join x`?
+/// An element that [`Abstract`] can join with.
+///
+/// Outside this trait, member functions are only called by
+/// [`Abstract::join`] and [`Abstract::join_copy`].
+///
+/// # Implementation
+///
+/// Implementors of this trait must either implement [`Joinable::join_internal`] or both
+/// [`Joinable::join_with`] and [`Joinable::join_with_copy`].
+pub trait Joinable {
+    /// Returns a pointer to the internal join result of `self` with `other`.
+    ///
+    /// If `destructive` is `true`, `other` is internally mutated and its pointer is returned,
+    /// if `destructive` is `false`, `other` is not mutated and a pointer to the newly allocated
+    /// internal `elina_abstract0_t` is returned.
+    ///
+    /// # Panics
+    ///
+    /// This function is only called by [`Joinable::join_with`] and [`Joinable::join_with_copy`].
+    /// It panics when neither `join_internal` nor the two `join_with`'s are implemented.
+    ///
+    /// # Safety
+    ///
+    /// This is unsafe, because `other` is internally mutated exactly if `destructive` is true.
+    /// The caller must ensure that they have mutable permissions for `other` when calling this
+    /// function with `destructive` set to true.
+    #[allow(unused_variables)]
+    unsafe fn join_internal<M: Manager>(
+        &self,
+        man: &M,
+        other: &Abstract,
+        destructive: bool,
+    ) -> *mut elina_abstract0_t {
+        panic!("Joinable::join_internal's definition must be overridden if you don't provide implementations for join_with and join_with_copy");
+    }
+
+    // reverse, self.join_with(other) = elina_abstract0_join...(other, self)
+    fn join_with<M: Manager>(&self, man: &M, other: &mut Abstract) {
+        unsafe {
+            // Mutates "other"
+            self.join_internal(man, other, true);
+        }
+    }
+    fn join_with_copy<M: Manager>(&self, man: &M, other: &Abstract) -> Abstract {
+        unsafe {
+            let new_abs_ptr = self.join_internal(man, other, false);
+            Abstract {
+                elina_abstract0: new_abs_ptr,
+            }
+        }
+    }
+}
+
+impl Joinable for Abstract {
+    unsafe fn join_internal<M: Manager>(
+        &self,
+        man: &M,
+        other: &Abstract,
+        destructive: bool,
+    ) -> *mut elina_abstract0_t {
+        elina_abstract0_join(
+            man.as_manager_ptr(),
+            c_bool_from_bool(destructive),
+            other.elina_abstract0,
+            self.elina_abstract0,
+        )
+    }
+}
+
 
 /// An interval used by [`Abstract::get_bounds`].
 ///
