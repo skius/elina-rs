@@ -5,7 +5,7 @@ use std::fmt::{Debug, Formatter};
 use std::ptr::null_mut;
 
 pub use elina_sys::{ConsTyp, TexprBinop, TexprUnop};
-use elina_sys::{__gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_copy, elina_abstract0_free, elina_abstract0_join, elina_abstract0_join_array, elina_abstract0_meet, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_dim_t, elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_};
+use elina_sys::{__gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_copy, elina_abstract0_free, elina_abstract0_is_bottom, elina_abstract0_is_top, elina_abstract0_join, elina_abstract0_join_array, elina_abstract0_meet, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_constyp_t_ELINA_CONS_DISEQ, elina_constyp_t_ELINA_CONS_EQ, elina_constyp_t_ELINA_CONS_SUPEQ, elina_dim_t, elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_};
 
 /// Provides the implementations of different abstract domains.
 pub trait Manager {
@@ -457,6 +457,26 @@ impl Abstract {
                     std::ptr::null_mut(),
                 ),
             }
+        }
+    }
+
+    /// Returns `true` if `self` is Top.
+    pub fn is_top<M: Manager>(&self, man: &M) -> bool {
+        unsafe {
+            bool_from_c_bool(elina_abstract0_is_top(
+                man.as_manager_ptr(),
+                self.elina_abstract0
+            ))
+        }
+    }
+
+    /// Returns `true` if `self` is Bottom.
+    pub fn is_bottom<M: Manager>(&self, man: &M) -> bool {
+        unsafe {
+            bool_from_c_bool(elina_abstract0_is_bottom(
+                man.as_manager_ptr(),
+                self.elina_abstract0
+            ))
         }
     }
 
