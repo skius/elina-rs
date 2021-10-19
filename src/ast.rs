@@ -5,7 +5,7 @@ use std::fmt::{Debug, Formatter};
 use std::ptr::null_mut;
 
 pub use elina_sys::{ConsTyp, TexprBinop, TexprUnop};
-use elina_sys::{__gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_copy, elina_abstract0_free, elina_abstract0_join, elina_abstract0_join_array, elina_abstract0_meet, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_constyp_t_ELINA_CONS_DISEQ, elina_constyp_t_ELINA_CONS_EQ, elina_constyp_t_ELINA_CONS_SUPEQ, elina_dim_t, elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_};
+use elina_sys::{__gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_copy, elina_abstract0_free, elina_abstract0_is_bottom, elina_abstract0_is_top, elina_abstract0_join, elina_abstract0_meet, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_constyp_t_ELINA_CONS_DISEQ, elina_constyp_t_ELINA_CONS_EQ, elina_constyp_t_ELINA_CONS_SUPEQ, elina_dim_t, elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_};
 
 /// Provides the implementations of different abstract domains.
 pub trait Manager {
@@ -739,6 +739,10 @@ impl Abstract {
 impl Drop for Abstract {
     fn drop(&mut self) {
         unsafe {
+            if bool_from_c_bool(elina_abstract0_is_bottom((*self.elina_abstract0).man, self.elina_abstract0)) {
+                // println!("Abstract drop ignored because it's bottom");
+                return;
+            }
             // println!("Drop incoming:");
             // let man_ptr = (*self.elina_abstract0).man;
             // println!("Dropping Abstract:!!!");
@@ -839,7 +843,7 @@ pub trait Meetable {
 }
 
 impl Meetable for Hcons {
-    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: &Abstract, destructive: bool) -> *mut elina_abstract0_t {
+    unsafe fn meet_internal<M: Manager>(&self, man: &M, other: *mut elina_abstract0_t, destructive: bool) -> *mut elina_abstract0_t {
         use Hcons::*;
         use HconsBinop::*;
         use HconsUnop::*;
@@ -847,26 +851,61 @@ impl Meetable for Hcons {
         match self {
             Leaf(tcons) => tcons.meet_internal(man, other, destructive),
             Binop(And, left, right) => {
-                // first do `destructive` meet
-                let left_res = left.meet_internal(man, other, destructive);
-                let mut left_abs = Abstract { elina_abstract0: left_res };
-                // then do mutating meet on result
-                right.meet_internal(man, &left_abs, true)
-                // TODO: probably also want to forget about left_abs here, because it will be returned
+                if destructive {
+                    let res = left.meet_internal(man, other, true);
+                    let res = right.meet_internal(man, res, true);
+                    res
+                } else {
+                    let interim = left.meet_internal(man, other, false);
+                    let res = right.meet_internal(man, interim, true);
+                    res
+                }
+                // // first do `destructive` meet
+                // let left_res = left.meet_internal(man, other, destructive);
+                // let mut left_abs = Abstract { elina_abstract0: left_res };
+                // // then do mutating meet on result
+                // println!("reached binop");
+                // dbg!(destructive);
+                // // let meet_ptr = right.meet_internal(man, &left_abs, true);
+                // // println!("meet result fine");
+                // // std::mem::forget(left_abs);
+                // // meet_ptr
+                // left_abs.meet(man, &**right);
+                // let meet_ptr = left_abs.elina_abstract0;
+                // println!("meet result fine");
+                // std::mem::forget(left_abs);
+                // meet_ptr
             },
             Binop(Or, left, right) => {
-                // TODO: Check this block for memory leaks and interactions (mutating and non-mutating)
-                let left_ptr = left.meet_internal(man, other, false);
-                let left_abs = Abstract { elina_abstract0: left_ptr };
-
-                let right_ptr = right.meet_internal(man, other, destructive);
-                let mut right_abs = Abstract { elina_abstract0: right_ptr };
-
-                // then do mutating join on result
-                let join_ptr = left_abs.join_internal(man, &right_abs, true);
-                // forget right_abs, because it's internal pointer is the result of this function
-                std::mem::forget(right_abs);
-                join_ptr
+                if destructive {
+                    let left_res = left.meet_internal(man, other, false);
+                    let right_res = right.meet_internal(man, other, true);
+                    let join_res = elina_abstract0_join(man.as_manager_ptr(), true_, right_res, left_res);
+                    // right has been mutated, left is still alive but useless => free left
+                    // dropping to use the bottom guard
+                    std::mem::drop(Abstract { elina_abstract0: left_res });
+                    join_res
+                } else {
+                    let left_res = left.meet_internal(man, other, false);
+                    let right_res = right.meet_internal(man, other, false);
+                    let join_res = elina_abstract0_join(man.as_manager_ptr(), true_, right_res, left_res);
+                    // right is the copied final abs, left is still alive but useless => free left
+                    // dropping to use the bottom guard
+                    std::mem::drop(Abstract { elina_abstract0: left_res });
+                    join_res
+                }
+                // // TODO: Check this block for memory leaks and interactions (mutating and non-mutating)
+                // let left_ptr = left.meet_internal(man, other, false);
+                // let left_abs = Abstract { elina_abstract0: left_ptr };
+                //
+                // let right_ptr = right.meet_internal(man, other, destructive);
+                // let mut right_abs = Abstract { elina_abstract0: right_ptr };
+                //
+                // // then do mutating join on result
+                // let join_ptr = left_abs.join_internal(man, &right_abs, true);
+                // // forget right_abs, because it's internal pointer is the result of this function
+                // std::mem::forget(right_abs);
+                // join_ptr
             },
             Unop(Not, inner) => inner.negation().meet_internal(man, other, destructive),
         }
