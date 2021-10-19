@@ -316,6 +316,7 @@ pub enum Hcons {
 }
 
 impl Hcons {
+    /// Returns a constraint representing the conjunction of `self` and `right`.
     pub fn and(self, right: Hcons) -> Hcons {
         Hcons::Binop(
             HconsBinop::And,
@@ -324,6 +325,7 @@ impl Hcons {
         )
     }
 
+    /// Returns a constraint representing the disjunction of `self` and `right`.
     pub fn or(self, right: Hcons) -> Hcons {
         Hcons::Binop(
             HconsBinop::Or,
@@ -332,16 +334,24 @@ impl Hcons {
         )
     }
 
+    /// Returns a constraint representing the negation of `self`.
+    ///
+    /// This method just constructs a constraint representing the negation, it does not perform
+    /// and translations into `or`'s and `and`'s. See [`Hcons::negation`] for that.
     pub fn not(self) -> Hcons {
         Hcons::Unop(HconsUnop::Not, Box::new(self))
     }
 
+    /// Returns `tcons` wrapped in an `Hcons`.
     pub fn leaf(tcons: Tcons) -> Hcons {
         Hcons::Leaf(tcons)
     }
 
 
-
+    /// Returns a cloned constraint representing negated `self`.
+    ///
+    /// This method actually turns negations into applicable `or`'s and `and`'s by using
+    /// De Morgan's laws.
     pub fn negation(&self) -> Hcons {
         use Hcons::*;
 
