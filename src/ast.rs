@@ -8,13 +8,14 @@ pub use elina_sys::{ConsTyp, TexprBinop, TexprUnop};
 use elina_sys::{
     __gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool,
     elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension,
-    elina_abstract0_free, elina_abstract0_meet, elina_abstract0_meet_tcons_array,
-    elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array,
-    elina_abstract0_top, elina_constyp_t, elina_dim_t, elina_interval_free,
-    elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t,
-    elina_scalar_free, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop,
-    elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free,
-    elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO,
+    elina_abstract0_copy, elina_abstract0_free, elina_abstract0_meet,
+    elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t,
+    elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_dim_t,
+    elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print,
+    elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_t,
+    elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy,
+    elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t,
+    elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO,
     elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_,
 };
 
@@ -616,6 +617,19 @@ impl Drop for Abstract {
             // println!("{:?}", &man as *const _);
             elina_abstract0_free((*self.elina_abstract0).man, self.elina_abstract0);
             // println!("dropped.");
+        }
+    }
+}
+
+impl Clone for Abstract {
+    fn clone(&self) -> Self {
+        unsafe {
+            Abstract {
+                elina_abstract0: elina_abstract0_copy(
+                    (*self.elina_abstract0).man,
+                    self.elina_abstract0,
+                ),
+            }
         }
     }
 }
