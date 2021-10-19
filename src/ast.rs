@@ -794,13 +794,25 @@ impl Meetable for Hcons {
                 // first do `destructive` meet
                 let left_res = left.meet_internal(man, other, destructive);
                 let mut left_abs = Abstract { elina_abstract0: left_res };
-                // then do mutating on result
+                // then do mutating meet on result
                 right.meet_internal(man, &left_abs, true)
+                // TODO: probably also want to forget about left_abs here, because it will be returned
             },
-            BinOp(Or, left, right) => {
-                todo!("Hcons Or needs concept of Join")
+            Binop(Or, left, right) => {
+                // TODO: Check this block for memory leaks and interactions (mutating and non-mutating)
+                let left_ptr = left.meet_internal(man, other, false);
+                let left_abs = Abstract { elina_abstract0: left_ptr };
+
+                let right_ptr = right.meet_internal(man, other, destructive);
+                let mut right_abs = Abstract { elina_abstract0: right_ptr };
+
+                // then do mutating join on result
+                let join_ptr = left_abs.join_internal(man, &right_abs, true);
+                // forget right_abs, because it's internal pointer is the result of this function
+                std::mem::forget(right_abs);
+                join_ptr
             },
-            Unop(Not, inner) => inner.negation().meet_internal(man, other, destructive)
+            Unop(Not, inner) => inner.negation().meet_internal(man, other, destructive),
         }
     }
 }
