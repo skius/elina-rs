@@ -47,6 +47,7 @@ fn main() {
 
     // 'Testing' memory leaks
 
+    // let mut meet_assn = meet_assn.clone();
     // let mut i = 0;
     // loop {
     //     i += 1;
