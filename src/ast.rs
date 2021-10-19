@@ -300,6 +300,11 @@ pub enum HconsUnop {
 }
 
 /// A multi-level constraint.
+///
+/// This type can be useful for meeting with an if-condition of a language with nested expressions.
+/// Its operations on an Abstract are defined through multiple lower-level operations. As such,
+/// expect `Hcons` operations (especially if the `Hcons` is nested deeply) to be slower than
+/// [`Tcons`].
 #[derive(Clone)]
 pub enum Hcons {
     /// Wraps a [`Tcons`].
@@ -311,29 +316,31 @@ pub enum Hcons {
 }
 
 impl Hcons {
-    pub fn and(left: Hcons, right: Hcons) -> Hcons {
+    pub fn and(self, right: Hcons) -> Hcons {
         Hcons::Binop(
             HconsBinop::And,
-            Box::new(left),
+            Box::new(self),
             Box::new(right)
         )
     }
 
-    pub fn or(left: Hcons, right: Hcons) -> Hcons {
+    pub fn or(self, right: Hcons) -> Hcons {
         Hcons::Binop(
             HconsBinop::Or,
-            Box::new(left),
+            Box::new(self),
             Box::new(right)
         )
     }
 
-    pub fn not(inner: Hcons) -> Hcons {
-        Hcons::Unop(HconsUnop::Not, Box::new(inner))
+    pub fn not(self) -> Hcons {
+        Hcons::Unop(HconsUnop::Not, Box::new(self))
     }
 
     pub fn leaf(tcons: Tcons) -> Hcons {
         Hcons::Leaf(tcons)
     }
+
+
 
     pub fn negation(&self) -> Hcons {
         use Hcons::*;
@@ -438,6 +445,12 @@ impl Drop for Tcons {
                 elina_scalar_free(tcons0.scalar);
             }
         }
+    }
+}
+
+impl Into<Hcons> for Tcons {
+    fn into(self) -> Hcons {
+        Hcons::Leaf(self)
     }
 }
 

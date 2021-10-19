@@ -53,13 +53,13 @@ fn main() {
 
     let top = Abstract::top(&man, &env);
 
-    let hc_unsat = Hcons::and(Leaf(x_gt_10.clone()), Leaf(x_lt_0.clone()));
+    let hc_unsat = x_gt_10.clone().into().and(x_lt_0.clone().into());
     println!("Prev meet");
     let hc_unsat_meet = top.meet_copy(&man, &hc_unsat);
     println!("hc_unsat_meet:");
     hc_unsat_meet.print(&man, &env);
 
-    let hc_or = Hcons::or(hc_unsat, Leaf(x.clone().lt(Texpr::int(1))));
+    let hc_or = hc_unsat.or(x.clone().lt(Texpr::int(1)).into());
     let hc_or_meet = top.meet_copy(&man, &hc_or);
     println!("hc_or_meet:");
     hc_or_meet.print(&man, &env);
