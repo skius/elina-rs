@@ -1,4 +1,5 @@
 pub mod ast;
+pub mod util;
 
 #[cfg(test)]
 mod tests {
