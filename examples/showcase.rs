@@ -1,7 +1,8 @@
+use std::ops::Add;
 use elina::ast::*;
 
 fn main() {
-    let env = Environment::new(vec!["x", "y", "z"]);
+    let env = Environment::new(vec!["x", "y", "z", "i"]);
     let man = OptPkManager::default();
 
     let x = Texpr::var(&env, "x");
@@ -71,6 +72,24 @@ fn main() {
 
     let hc_or_meet_joined_string = hc_or_meet_joined.to_string(&man, &env);
     println!("hc_or_meet_joined string: {}", hc_or_meet_joined_string);
+
+    // Widen stuff
+    let x = x;
+    let i = Texpr::var(&env, "i");
+    let i_lt_x: Hcons = i.clone().lt(x.clone()).into();
+
+    let mut top = Abstract::top(&man, &env);
+    top.assign(&man, &env, "i", &y);
+    top.meet(&man, &i_lt_x);
+
+    let i0 = top.clone();
+    top.assign(&man, &env, "i", &Texpr::int(1).add(y.clone()));
+    top.meet(&man, &i_lt_x);
+    let i1 = top.clone();
+    println!("i0: {}", i0.to_string(&man, &env));
+    println!("i1: {}", i1.to_string(&man, &env));
+    println!("i0 widen i1: {}", (i0.widen_copy(&man, &i1)).to_string(&man, &env));
+
 
     // 'Testing' memory leaks
 
