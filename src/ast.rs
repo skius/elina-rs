@@ -2,10 +2,13 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::fmt::{Debug, Formatter};
-use std::ptr::null_mut;
+use std::ops::Deref;
+use std::os::raw::c_char;
+use std::ptr::{null_mut, slice_from_raw_parts, slice_from_raw_parts_mut};
 
 pub use elina_sys::{ConsTyp, TexprBinop, TexprUnop};
 use elina_sys::{__gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_copy, elina_abstract0_free, elina_abstract0_is_bottom, elina_abstract0_is_top, elina_abstract0_join, elina_abstract0_meet, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_constyp_t, elina_constyp_t_ELINA_CONS_DISEQ, elina_constyp_t_ELINA_CONS_EQ, elina_constyp_t_ELINA_CONS_SUPEQ, elina_dim_t, elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_};
+use crate::util::lincons0_to_string;
 
 /// Provides the implementations of different abstract domains.
 pub trait Manager {
@@ -63,6 +66,60 @@ impl Environment {
                 .map(|(i, v)| (v.as_ref().to_owned(), i as u32))
                 .collect(),
         }
+    }
+
+    pub fn to_env_names(&self) -> EnvNames {
+        let rev_env = self
+            .var_to_dim
+            .iter()
+            .map(|(k, v)| (v.to_owned(), k.to_owned()))
+            .collect::<HashMap<elina_dim_t, String>>();
+
+        let mut names = (0..self.var_to_dim.len() as u32)
+            .into_iter()
+            .map(|d| CString::new(rev_env[&d].as_str()).unwrap().into_raw())
+            .collect::<Vec<_>>();
+
+        let names_ptr = names.as_mut_ptr();
+        let len = names.len();
+        std::mem::forget(names);
+
+        EnvNames {
+            c_arr: names_ptr,
+            len: len,
+        }
+    }
+
+    // // TODO: create deref wrapper that frees on drop
+    // pub fn free_c_arr(ptr: *mut *mut c_char) {
+    //     names
+    //         .into_iter()
+    //         .for_each(|ptr| std::mem::drop(CString::from_raw(ptr)));
+    // }
+}
+
+// TODO: make clear/say it's important that EnvNames lives as long as its pointer is needed
+pub struct EnvNames {
+    pub c_arr: *mut *mut c_char,
+    pub len: usize,
+}
+
+impl Drop for EnvNames {
+    fn drop(&mut self) {
+        unsafe {
+            // println!("Dropping EnvNames");
+            for ptr in (*slice_from_raw_parts_mut(self.c_arr, self.len)).iter() {
+                    std::mem::drop(CString::from_raw(*ptr));
+            }
+        }
+    }
+}
+
+impl Deref for EnvNames {
+    type Target = *mut *mut c_char;
+
+    fn deref(&self) -> &Self::Target {
+        &self.c_arr
     }
 }
 
@@ -401,6 +458,10 @@ impl Tcons {
         res
     }
 
+    pub fn into_hcons(self) -> Hcons {
+        Hcons::Leaf(self)
+    }
+
     pub fn negation(&self) -> Tcons {
         unsafe {
             let cloned = self.clone();
@@ -722,6 +783,40 @@ impl Abstract {
             elina_interval_free(interval_ptr);
 
             Interval(inf, sup)
+        }
+    }
+
+    /// Returns a `String` representation of `self`.
+    pub fn to_string<M: Manager>(&self, man: &M, env: &Environment) -> String {
+        if self.is_bottom(man) {
+            // <empty>
+            return "<bottom>".to_owned();
+        } else if self.is_top(man) {
+            // <universal>
+            return "<top>".to_owned();
+        }
+        unsafe {
+            let mut lincons_arr =
+                elina_abstract0_to_lincons_array(man.as_manager_ptr(), self.elina_abstract0);
+
+            let len = lincons_arr.size as usize;
+            let lincons_slice = slice_from_raw_parts_mut(lincons_arr.p, len);
+
+            let mut result = "{".to_owned();
+            let mut first = true;
+            for lincons in &mut *lincons_slice {
+                if first {
+                    result.push_str(" ");
+                    first = false;
+                } else {
+                    result.push_str("; ");
+                }
+
+                result.push_str(&lincons0_to_string(man, env, lincons))
+            }
+            result.push_str(" }");
+
+            result
         }
     }
 

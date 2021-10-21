@@ -10,9 +10,17 @@ fn main() {
     println!("cargo:rustc-link-lib=elinaux");
     println!("cargo:rustc-link-lib=optpoly");
     println!("cargo:rustc-link-lib=gmp");
+    println!("cargo:rustc-link-lib=mpfr");
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=wrapper.h");
+    println!("cargo:rerun-if-changed=wrapper.c");
+
+
+
+    cc::Build::new()
+        .file("wrapper.c")
+        .compile("wrapper");
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for

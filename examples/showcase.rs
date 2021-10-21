@@ -36,6 +36,7 @@ fn main() {
     let meet_assn = meet.assign_copy(&man, &env, "z", &(y.clone() + Texpr::int(2)));
     println!("meet_assn (z = y + 2):");
     meet_assn.print(&man, &env);
+    println!("meet_assn string: {}", meet_assn.to_string(&man, &env));
     println!("meet_assn satisfies z < 21: {}", meet_assn.satisfy(&man, &z.clone().lt(Texpr::int(21))));
     println!("meet_assn satisfies z < 20: {}", meet_assn.satisfy(&man, &z.clone().lt(Texpr::int(20))));
     println!("meet_assn satisfies z < 19: {}", meet_assn.satisfy(&man, &z.clone().lt(Texpr::int(19))));
@@ -53,7 +54,7 @@ fn main() {
 
     let top = Abstract::top(&man, &env);
 
-    let hc_unsat = x_gt_10.clone().into().and(x_lt_0.clone().into());
+    let hc_unsat = x_gt_10.clone().into_hcons().and(x_lt_0.clone().into());
     println!("Prev meet");
     let hc_unsat_meet = top.meet_copy(&man, &hc_unsat);
     println!("hc_unsat_meet:");
@@ -67,6 +68,9 @@ fn main() {
     let hc_or_meet_joined = hc_or_meet.join_copy(&man, &meet_assn);
     println!("hc_or_meet_joined:");
     hc_or_meet_joined.print(&man, &env);
+
+    let hc_or_meet_joined_string = hc_or_meet_joined.to_string(&man, &env);
+    println!("hc_or_meet_joined string: {}", hc_or_meet_joined_string);
 
     // 'Testing' memory leaks
 

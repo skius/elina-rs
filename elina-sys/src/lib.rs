@@ -1,8 +1,18 @@
 #![allow(non_upper_case_globals)]
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
+// TODO: check if this is okay
+#![allow(improper_ctypes)]
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+
+// extern "C" {
+//     pub fn foreach_linterm_of_linexpr0(
+//         linexpr: *mut elina_linexpr0_t,
+//         f: fn (i: size_t, dim: elina_dim_t, coeff: *mut elina_coeff_t) -> i32,
+//     ) -> i32;
+// }
+
 
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -28,6 +38,18 @@ pub enum ConsTyp {
     EQ = elina_constyp_t_ELINA_CONS_EQ,
     DISEQ = elina_constyp_t_ELINA_CONS_DISEQ,
     //MODEQ, needs support in Tcons in the form of a proper scalar
+}
+
+impl From<elina_constyp_t> for ConsTyp {
+    fn from(c: elina_constyp_t) -> Self {
+        match c {
+            c if c == elina_constyp_t_ELINA_CONS_SUPEQ => ConsTyp::SUPEQ,
+            c if c == elina_constyp_t_ELINA_CONS_SUP => ConsTyp::SUP,
+            c if c == elina_constyp_t_ELINA_CONS_EQ => ConsTyp::EQ,
+            c if c == elina_constyp_t_ELINA_CONS_DISEQ => ConsTyp::DISEQ,
+            c => panic!("constyp not supported: {}", c),
+        }
+    }
 }
 
 pub fn bool_from_c_bool(b: bool_) -> bool {
