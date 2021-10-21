@@ -98,6 +98,14 @@ impl Environment {
     // }
 }
 
+impl Deref for Environment {
+    type Target = HashMap<String, elina_dim_t>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.var_to_dim
+    }
+}
+
 // TODO: make clear/say it's important that EnvNames lives as long as its pointer is needed
 pub struct EnvNames {
     pub c_arr: *mut *mut c_char,
