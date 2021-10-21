@@ -9,34 +9,37 @@ use elina_sys::{elina_lincons0_fprint, elina_lincons0_t, fclose, free, open_mems
 
 use crate::ast::{Environment, Manager};
 
-pub fn lincons0_to_string<M: Manager>(man: &M, env: &Environment, lincons0: *mut elina_lincons0_t) -> String {
-    unsafe {
-        let mut buf: *mut c_char = null_mut();
-        let mut len = 0;
-        let fd = open_memstream(&mut buf, &mut len);
-        // to_env_names is okay here, because drop order guarantees it's only dropped after
-        // the function has exited, at which point we don't need to strings anymore
-        elina_lincons0_fprint(fd, lincons0, *env.to_env_names());
-        fclose(fd);
-        let res = CStr::from_ptr(buf).to_str().unwrap().to_string();
-        free(buf as *mut _);
-        return res;
-        //
-        //
-        // UNFINISHED MANUAL IMPLEMENTATION:
-        //
-        // let linexpr = (*lincons0).linexpr0;
-        // let mut res = linexpr0_to_string(man, env, linexpr);
-        //
-        // match (*lincons0).constyp.into() {
-        //     ConsTyp::SUPEQ => res.push_str(" >= 0"),
-        //     ConsTyp::SUP => res.push_str(" > 0"),
-        //     ConsTyp::EQ => res.push_str(" = 0"),
-        //     ConsTyp::DISEQ => res.push_str(" <> 0"),
-        // }
-        //
-        // res
-    }
+/// This function converts an `elina_lincons0_t` to a `String`.
+///
+/// # Safety
+///
+/// This function necessarily will read from the passed raw pointer, making it unsafe.
+pub unsafe fn lincons0_to_string<M: Manager>(man: &M, env: &Environment, lincons0: *mut elina_lincons0_t) -> String {
+    let mut buf: *mut c_char = null_mut();
+    let mut len = 0;
+    let fd = open_memstream(&mut buf, &mut len);
+    // to_env_names is okay here, because drop order guarantees it's only dropped after
+    // the function has exited, at which point we don't need to strings anymore
+    elina_lincons0_fprint(fd, lincons0, *env.to_env_names());
+    fclose(fd);
+    let res = CStr::from_ptr(buf).to_str().unwrap().to_string();
+    free(buf as *mut _);
+    return res;
+    //
+    //
+    // UNFINISHED MANUAL IMPLEMENTATION:
+    //
+    // let linexpr = (*lincons0).linexpr0;
+    // let mut res = linexpr0_to_string(man, env, linexpr);
+    //
+    // match (*lincons0).constyp.into() {
+    //     ConsTyp::SUPEQ => res.push_str(" >= 0"),
+    //     ConsTyp::SUP => res.push_str(" > 0"),
+    //     ConsTyp::EQ => res.push_str(" = 0"),
+    //     ConsTyp::DISEQ => res.push_str(" <> 0"),
+    // }
+    //
+    // res
 }
 
 // // https://adventures.michaelfbryan.com/posts/rust-closures-in-ffi/

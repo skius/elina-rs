@@ -786,6 +786,7 @@ impl Abstract {
         }
     }
 
+    /// Returns a `String` representation of `self`.
     pub fn to_string<M: Manager>(&self, man: &M, env: &Environment) -> String {
         if self.is_bottom(man) {
             // <empty>
