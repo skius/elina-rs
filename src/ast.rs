@@ -69,36 +69,22 @@ impl Environment {
         }
     }
 
-    // TODO: use phantomdata marker trait for EnvNames
+    /// Allocates an [`EnvNames`] that refers to the variable names of `self` for use in FFI.
+    ///
+    /// See `EnvNames` for its invariants.
     pub fn to_env_names(&self) -> EnvNames {
-        let rev_env = self
-            .var_to_dim
-            .iter()
-            .map(|(k, v)| (v.to_owned(), k.to_owned()))
-            .collect::<HashMap<elina_dim_t, String>>();
+        let mut hash_vec = self.var_to_dim.iter().collect::<Vec<_>>();
+        hash_vec.sort_by(|a, b| a.1.cmp(b.1));
 
-        let mut names = (0..self.var_to_dim.len() as u32)
-            .into_iter()
-            .map(|d| CString::new(rev_env[&d].as_str()).unwrap().into_raw())
+        let names = hash_vec.
+            iter()
+            .map(|(v, _)| CString::new(v.as_str()).unwrap().into_raw())
             .collect::<Vec<_>>();
 
-        let names_ptr = names.as_mut_ptr();
-        let len = names.len();
-        std::mem::forget(names);
-
         EnvNames {
-            c_arr: names_ptr,
-            len: len,
-            phantom: PhantomData,
+            names,
         }
     }
-
-    // // TODO: create deref wrapper that frees on drop
-    // pub fn free_c_arr(ptr: *mut *mut c_char) {
-    //     names
-    //         .into_iter()
-    //         .for_each(|ptr| std::mem::drop(CString::from_raw(ptr)));
-    // }
 }
 
 impl Deref for Environment {
@@ -109,29 +95,36 @@ impl Deref for Environment {
     }
 }
 
-// TODO: make clear/say it's important that EnvNames lives as long as its pointer is needed
-pub struct EnvNames<'a> {
-    pub c_arr: *mut *mut c_char,
-    pub len: usize,
-    phantom: PhantomData<&'a Environment>
+/// A type that owns an array of [`CString`].
+///
+/// It is intended to be used with various FFI `elina` functions that require an array of strings
+/// representing named variables.
+pub struct EnvNames {
+    names: Vec<*mut c_char>,
 }
 
-impl Drop for EnvNames<'_> {
-    fn drop(&mut self) {
-        unsafe {
-            // println!("Dropping EnvNames");
-            for ptr in (*slice_from_raw_parts_mut(self.c_arr, self.len)).iter() {
-                    std::mem::drop(CString::from_raw(*ptr));
-            }
-        }
+impl EnvNames {
+    /// Returns a pointer to its owned array of strings for use with FFI.
+    ///
+    /// The caller must ensure that `self` outlives the pointer that this function returns,
+    /// because otherwise it will be pointing to garbage.
+    ///
+    /// **Note:** Additionally, the returned array may not be modified, despite it being a
+    /// `*mut _`. This is because currently all FFI functions take `*mut c_char`, even though
+    /// in most cases they are not modifying the string.
+    pub fn as_mut_ptr(&mut self) -> *mut *mut c_char {
+        self.names.as_mut_ptr()
     }
 }
 
-impl Deref for EnvNames<'_> {
-    type Target = *mut *mut c_char;
-
-    fn deref(&self) -> &Self::Target {
-        &self.c_arr
+impl Drop for EnvNames {
+    fn drop(&mut self) {
+        unsafe {
+            // println!("Dropping EnvNames");
+            for ptr in &self.names {
+                    std::mem::drop(CString::from_raw(*ptr));
+            }
+        }
     }
 }
 
@@ -925,28 +918,6 @@ impl PartialEq for Abstract {
 }
 
 impl Eq for Abstract {}
-
-// impl Display for Abstract {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         unsafe {
-//             let man = self.elina_abstract0.man;
-//             let lincons_arr = elina_abstract0_to_lincons_array(man, self.elina_abstract0);
-//
-//             let lincons_sl = slice_from_raw_parts(lincons_arr.p, lincons_arr.size as usize);
-//
-//             f.write_str("{ ");
-//             for lincons in &*lincons_sl {
-//                 f.write_str(lincons.linexpr0.discr)
-//             }
-//
-//             Ok(())
-//         }
-//     }
-// }
-
-// TODO: Add docs, examples
-// also add a custom struct that allows AND/ORs between Tcons by lazily storing them
-// and only evaluating them when Meet/Join is called
 
 /// An element that [`Abstract`] can meet with.
 ///

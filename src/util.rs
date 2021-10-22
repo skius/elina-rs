@@ -7,7 +7,7 @@ use std::ptr::null_mut;
 
 use elina_sys::{elina_lincons0_fprint, elina_lincons0_t, fclose, free, open_memstream};
 
-use crate::ast::{Environment, Manager};
+use crate::ast::{Environment, EnvNames, Manager};
 
 /// This function converts an `elina_lincons0_t` to a `String`.
 ///
@@ -20,10 +20,12 @@ pub unsafe fn lincons0_to_string<M: Manager>(man: &M, env: &Environment, lincons
     let fd = open_memstream(&mut buf, &mut len);
     // to_env_names is okay here, because drop order guarantees it's only dropped after
     // the function has exited, at which point we don't need to strings anymore
-    elina_lincons0_fprint(fd, lincons0, *env.to_env_names());
+    let mut env_names = env.to_env_names();
+    elina_lincons0_fprint(fd, lincons0, env_names.as_mut_ptr());
     fclose(fd);
     let res = CStr::from_ptr(buf).to_str().unwrap().to_string();
     free(buf as *mut _);
+    std::mem::drop(env_names);
     return res;
     //
     //
