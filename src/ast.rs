@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::fmt::{Debug, Formatter};
+use std::marker::PhantomData;
 use std::ops::Deref;
 use std::os::raw::c_char;
 use std::ptr::{null_mut, slice_from_raw_parts, slice_from_raw_parts_mut};
@@ -68,6 +69,7 @@ impl Environment {
         }
     }
 
+    // TODO: use phantomdata marker trait for EnvNames
     pub fn to_env_names(&self) -> EnvNames {
         let rev_env = self
             .var_to_dim
@@ -87,6 +89,7 @@ impl Environment {
         EnvNames {
             c_arr: names_ptr,
             len: len,
+            phantom: PhantomData,
         }
     }
 
@@ -107,12 +110,13 @@ impl Deref for Environment {
 }
 
 // TODO: make clear/say it's important that EnvNames lives as long as its pointer is needed
-pub struct EnvNames {
+pub struct EnvNames<'a> {
     pub c_arr: *mut *mut c_char,
     pub len: usize,
+    phantom: PhantomData<&'a Environment>
 }
 
-impl Drop for EnvNames {
+impl Drop for EnvNames<'_> {
     fn drop(&mut self) {
         unsafe {
             // println!("Dropping EnvNames");
@@ -123,7 +127,7 @@ impl Drop for EnvNames {
     }
 }
 
-impl Deref for EnvNames {
+impl Deref for EnvNames<'_> {
     type Target = *mut *mut c_char;
 
     fn deref(&self) -> &Self::Target {
