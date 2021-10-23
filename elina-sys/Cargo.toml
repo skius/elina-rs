@@ -1,6 +1,6 @@
 [package]
 name = "elina-sys"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2018"
 license = "MIT OR Apache-2.0"
 authors = ["Niels Saurer <me@nielssaurer.com>"]
@@ -16,5 +16,4 @@ documentation = "https://docs.rs/elina-sys"
 [dependencies]
 
 [build-dependencies]
-bindgen = "0.59.1"
 cc = "1.0.71"

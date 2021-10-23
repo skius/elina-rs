@@ -4,7 +4,9 @@
 // TODO: check if this is okay
 #![allow(improper_ctypes)]
 
-include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+// include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+mod bindings;
+pub use bindings::*;
 
 // extern "C" {
 //     pub fn foreach_linterm_of_linexpr0(
