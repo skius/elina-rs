@@ -48,7 +48,7 @@ fn main() {
 
 
 
-    use Hcons::*;
+    
 
     let x_gt_10 = Texpr::var(&env, "x").gt(Texpr::int(10));
     let x_lt_0 = Texpr::var(&env, "x").lt(Texpr::int(0));

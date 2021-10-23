@@ -7,14 +7,14 @@ use std::ptr::null_mut;
 
 use elina_sys::{elina_lincons0_fprint, elina_lincons0_t, fclose, free, open_memstream};
 
-use crate::ast::{Environment, EnvNames, Manager};
+use crate::ast::{Environment, Manager};
 
 /// This function converts an `elina_lincons0_t` to a `String`.
 ///
 /// # Safety
 ///
 /// This function necessarily will read from the passed raw pointer, making it unsafe.
-pub unsafe fn lincons0_to_string<M: Manager>(man: &M, env: &Environment, lincons0: *mut elina_lincons0_t) -> String {
+pub unsafe fn lincons0_to_string<M: Manager>(_man: &M, env: &Environment, lincons0: *mut elina_lincons0_t) -> String {
     let mut buf: *mut c_char = null_mut();
     let mut len = 0;
     let fd = open_memstream(&mut buf, &mut len);
