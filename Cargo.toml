@@ -3,10 +3,17 @@ name = "elina"
 version = "0.1.0"
 edition = "2018"
 license = "MIT OR Apache-2.0"
+authors = ["Niels Saurer <me@nielssaurer.com>"]
+
+description = "Safe, high-level Rust wrapper for ELINA"
+categories = ["api-bindings"]
+homepage = "https://github.com/skius/elina-rs"
+repository = "https://github.com/skius/elina-rs"
+documentation = "https://docs.rs/elina"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace]
 
 [dependencies]
-elina-sys = { path = "elina-sys" }
+elina-sys = { path = "elina-sys", version = "0.1.0" }
