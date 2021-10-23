@@ -16,4 +16,4 @@ documentation = "https://docs.rs/elina"
 [workspace]
 
 [dependencies]
-elina-sys = { path = "elina-sys", version = "0.1.0" }
+elina-sys = { path = "elina-sys", version = "0.1.1" }
