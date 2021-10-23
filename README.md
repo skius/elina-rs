@@ -1,6 +1,6 @@
 # elina-rs
 
-![Crates.io](https://img.shields.io/crates/v/elina)
+[![Crates.io](https://img.shields.io/crates/v/elina)](https://crates.io/crates/elina)
 
 This library provides a safe Rust abstraction over the ELINA C library. To learn more about
 ELINA, see their [GitHub](https://github.com/eth-sri/ELINA/) and [website](http://elina.ethz.ch/).
