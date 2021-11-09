@@ -43,6 +43,14 @@ fn main() {
     println!("meet_assn satisfies z < 19: {}", meet_assn.satisfy(&man, &z.clone().lt(Texpr::int(19))));
     println!("meet_assn satisfies z < 18: {}", meet_assn.satisfy(&man, &z.clone().lt(Texpr::int(18))));
 
+    // meeting meet_assn with x < Texpr::top should change nothing
+    let meet_assn2 = meet_assn.meet_copy(&man, &x.clone().lt(Texpr::top()));
+    println!("meet_assn (with x < top): {}", meet_assn2.to_string(&man, &env));
+
+    // neither should Hcons::top
+    println!("meet_assn (meet with  top): {}", meet_assn.meet_copy(&man, &Hcons::Top).to_string(&man, &env));
+    println!("meet_assn (meet with !top): {}", meet_assn.meet_copy(&man, &Hcons::Top.not()).to_string(&man, &env));
+
     let x_bounds = meet_assn.get_bounds(&man, &env, "x");
     println!("x's bounds: {:?}", x_bounds);
 

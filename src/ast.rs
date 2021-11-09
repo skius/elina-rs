@@ -8,7 +8,7 @@ use std::os::raw::c_char;
 use std::ptr::{null_mut, slice_from_raw_parts_mut};
 
 pub use elina_sys::{ConsTyp, TexprBinop, TexprUnop};
-use elina_sys::{__gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_copy, elina_abstract0_free, elina_abstract0_is_bottom, elina_abstract0_is_eq, elina_abstract0_is_top, elina_abstract0_join, elina_abstract0_meet, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_abstract0_widening, elina_constyp_t, elina_constyp_t_ELINA_CONS_DISEQ, elina_constyp_t_ELINA_CONS_EQ, elina_constyp_t_ELINA_CONS_SUPEQ, elina_dim_t, elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_};
+use elina_sys::{__gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_copy, elina_abstract0_free, elina_abstract0_is_bottom, elina_abstract0_is_eq, elina_abstract0_is_top, elina_abstract0_join, elina_abstract0_meet, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_abstract0_widening, elina_constyp_t, elina_constyp_t_ELINA_CONS_DISEQ, elina_constyp_t_ELINA_CONS_EQ, elina_constyp_t_ELINA_CONS_SUPEQ, elina_dim_t, elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_interval_top, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_};
 use crate::util::lincons0_to_string;
 
 /// Provides the implementations of different abstract domains.
@@ -216,6 +216,15 @@ impl Texpr {
         }
     }
 
+    /// Returns a `Texpr` representing all (integer) values.
+    pub fn top() -> Texpr {
+        unsafe {
+            Texpr {
+                elina_texpr0: elina_texpr0_cst_interval_top(),
+            }
+        }
+    }
+
     /*
         Tcons constraint generating operators
         These have a special meaning in Rust and cannot be overloaded
@@ -375,6 +384,8 @@ pub enum Hcons {
     Binop(HconsBinop, Box<Hcons>, Box<Hcons>),
     /// A unary operation on a constraint.
     Unop(HconsUnop, Box<Hcons>),
+    /// A constrait that is always true, i.e. meeting with Hcons::Top is a no-op.
+    Top,
 }
 
 impl Hcons {
@@ -426,6 +437,8 @@ impl Hcons {
                     Box::new(right.negation())
                 ),
             Unop(HconsUnop::Not, inner) => *inner.clone(),
+            // TODO: does this make sense?
+            Top => Top,
         }
     }
 }
@@ -1009,6 +1022,14 @@ impl Meetable for Hcons {
                 join_res
             },
             Unop(Not, inner) => inner.negation().meet_internal(man, other, destructive),
+            Top => {
+                // Top is a no-op, so we just need to decide whether we are creating a new copy or not
+                if destructive {
+                    other
+                } else {
+                    elina_abstract0_copy((*other).man, other)
+                }
+            }
         }
     }
 }
