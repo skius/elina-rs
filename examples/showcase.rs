@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::ops::{Add, Mul};
 use elina::ast::*;
 
 fn main() {
@@ -98,6 +98,12 @@ fn main() {
     println!("i1: {}", i1.to_string(&man, &env));
     println!("i0 widen i1: {}", (i0.widen_copy(&man, &i1)).to_string(&man, &env));
 
+
+    let mut state = Abstract::top(&man, &env);
+    state.assign(&man, &env, "y", &Texpr::int(2).mul(x.clone()));
+    state.meet(&man, &(y.clone() + x.clone()).lt(Texpr::int(9)));
+    println!("3x < 9: {}", state.to_string(&man, &env));
+    println!("x bounds: {:?}", state.get_bounds(&man, &env, "x"));
 
     // 'Testing' memory leaks
 

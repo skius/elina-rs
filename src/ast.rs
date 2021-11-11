@@ -8,7 +8,7 @@ use std::os::raw::c_char;
 use std::ptr::{null_mut, slice_from_raw_parts_mut};
 
 pub use elina_sys::{ConsTyp, TexprBinop, TexprUnop};
-use elina_sys::{__gmpq_get_str, __gmpz_export, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_copy, elina_abstract0_free, elina_abstract0_is_bottom, elina_abstract0_is_eq, elina_abstract0_is_top, elina_abstract0_join, elina_abstract0_meet, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_abstract0_widening, elina_constyp_t, elina_constyp_t_ELINA_CONS_DISEQ, elina_constyp_t_ELINA_CONS_EQ, elina_constyp_t_ELINA_CONS_SUPEQ, elina_dim_t, elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_interval_top, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_};
+use elina_sys::{__gmpf_floor, __gmpq_get_str, __gmpq_out_str, __gmpz_export, __gmpz_fdiv_q, __mpz_struct, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_copy, elina_abstract0_free, elina_abstract0_is_bottom, elina_abstract0_is_eq, elina_abstract0_is_top, elina_abstract0_join, elina_abstract0_meet, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_abstract0_widening, elina_constyp_t, elina_constyp_t_ELINA_CONS_DISEQ, elina_constyp_t_ELINA_CONS_EQ, elina_constyp_t_ELINA_CONS_SUPEQ, elina_dim_t, elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_infty, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_interval_top, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_};
 use crate::util::lincons0_to_string;
 
 /// Provides the implementations of different abstract domains.
@@ -712,112 +712,83 @@ impl Abstract {
         S: Borrow<str>,
     {
         unsafe {
-            // the OPT_PK manager does not support getting a texpr's bound, thus we need a workaround
-            // let interval_ptr = elina_abstract0_bound_texpr(man.as_manager_ptr(), self.elina_abstract0, texpr.elina_texpr0);
-
-            // let linexpr = elina_intlinearize_texpr0_intlinear(
-            //     man.as_manager_ptr(),
-            //     texpr.elina_texpr0,
-            //     elina_scalar_discr_t_ELINA_SCALAR_MPQ
-            // );
-            // let lin = *linexpr;
-            // println!("{:?}", &lin as *const elina_linexpr0_t);
-            //
-            // let interval_ptr = elina_abstract0_bound_linexpr(
-            //     man.as_manager_ptr(),
-            //     self.elina_abstract0,
-            //     linexpr
-            // );
-
             let dim = env.var_to_dim[var.borrow()];
             let interval_ptr =
                 elina_abstract0_bound_dimension(man.as_manager_ptr(), self.elina_abstract0, dim);
 
-            let inf = *(*interval_ptr).inf;
-            let inf = *inf.val.mpq;
-            let inf_denom = inf._mp_den;
-            let inf_enum = inf._mp_num;
+            let inf = (*interval_ptr).inf;
+            let inf_bound = match elina_scalar_infty(inf) {
+                b if b < 0 => Bound::NegInfinity,
+                b if b > 0 => Bound::PosInfinity,
+                _ => {
+                    let inf = *(*inf).val.mpq;
+                    let inf_denom = inf._mp_den;
+                    let inf_enum = inf._mp_num;
 
-            let mut result_denom = 0u64;
-            let mut result_enum = 0u64;
-            __gmpz_export(
-                &mut result_denom as *mut _ as _,
-                null_mut(),
-                -1,
-                8,
-                0,
-                0,
-                &inf_denom,
-            );
-            __gmpz_export(
-                &mut result_enum as *mut _ as _,
-                null_mut(),
-                -1,
-                8,
-                0,
-                0,
-                &inf_enum,
-            );
+                    let mut result_denom = 0u64;
+                    let mut result_enum = 0u64;
+                    __gmpz_export(
+                        &mut result_denom as *mut _ as _,
+                        null_mut(),
+                        -1,
+                        8,
+                        0,
+                        0,
+                        &inf_denom,
+                    );
+                    __gmpz_export(
+                        &mut result_enum as *mut _ as _,
+                        null_mut(),
+                        -1,
+                        8,
+                        0,
+                        0,
+                        &inf_enum,
+                    );
 
-            let inf_str_ptr = __gmpq_get_str(null_mut(), 10, &inf);
-            let inf_str = CStr::from_ptr(inf_str_ptr);
-            // println!("inf_str: {:?}", inf_str);
-
-            let inf = if result_denom == 0 {
-                Bound::NegInfinity
-            } else {
-                Bound::Num(inf_str.to_str().unwrap().parse().unwrap())
+                    // lower bound, hence we ceil.
+                    Bound::Num(((result_enum as f64) / (result_denom as f64)).ceil() as i64)
+                }
             };
-            free(inf_str_ptr as *mut _);
 
-            // println!("inf: {:?}", inf);
+            let sup = (*interval_ptr).sup;
+            let sup_bound = match elina_scalar_infty(sup) {
+                b if b < 0 => Bound::NegInfinity,
+                b if b > 0 => Bound::PosInfinity,
+                _ => {
+                    let sup = *(*sup).val.mpq;
+                    let sup_denom = sup._mp_den;
+                    let sup_enum = sup._mp_num;
 
-            let sup = *(*interval_ptr).sup;
-            let sup = *sup.val.mpq;
-            let sup_denom = sup._mp_den;
-            let sup_enum = sup._mp_num;
+                    let mut result_denom = 0u64;
+                    let mut result_enum = 0u64;
+                    __gmpz_export(
+                        &mut result_denom as *mut _ as _,
+                        null_mut(),
+                        -1,
+                        8,
+                        0,
+                        0,
+                        &sup_denom,
+                    );
+                    __gmpz_export(
+                        &mut result_enum as *mut _ as _,
+                        null_mut(),
+                        -1,
+                        8,
+                        0,
+                        0,
+                        &sup_enum,
+                    );
 
-            let mut result_denom = 0u64;
-            let mut result_enum = 0u64;
-            __gmpz_export(
-                &mut result_denom as *mut _ as _,
-                null_mut(),
-                -1,
-                8,
-                0,
-                0,
-                &sup_denom,
-            );
-            __gmpz_export(
-                &mut result_enum as *mut _ as _,
-                null_mut(),
-                -1,
-                8,
-                0,
-                0,
-                &sup_enum,
-            );
-
-            let sup_str_ptr = __gmpq_get_str(null_mut(), 10, &sup);
-            let sup_str = CStr::from_ptr(sup_str_ptr);
-            // println!("sup_str: {:?}", sup_str);
-
-            let sup = if result_denom == 0 {
-                Bound::PosInfinity
-            } else {
-                Bound::Num(sup_str.to_str().unwrap().parse().unwrap())
+                    // upper bound, hence we floor.
+                    Bound::Num(((result_enum as f64) / (result_denom as f64)).floor() as i64)
+                }
             };
-            free(sup_str_ptr as *mut _);
-
-            // println!("sup: {:?}", sup);
-
-            // gives f64
-            // let inf = __gmpq_get_d((*inf).val.mpq);
-            // println!("{}", inf);
 
             elina_interval_free(interval_ptr);
 
-            Interval(inf, sup)
+            Interval(inf_bound, sup_bound)
         }
     }
 
