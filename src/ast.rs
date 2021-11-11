@@ -8,7 +8,7 @@ use std::os::raw::c_char;
 use std::ptr::{null_mut, slice_from_raw_parts_mut};
 
 pub use elina_sys::{ConsTyp, TexprBinop, TexprUnop};
-use elina_sys::{__gmpf_floor, __gmpq_get_str, __gmpq_out_str, __gmpz_export, __gmpz_fdiv_q, __mpz_struct, bool_from_c_bool, c_bool_from_bool, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_copy, elina_abstract0_free, elina_abstract0_is_bottom, elina_abstract0_is_eq, elina_abstract0_is_top, elina_abstract0_join, elina_abstract0_meet, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_abstract0_widening, elina_constyp_t, elina_constyp_t_ELINA_CONS_DISEQ, elina_constyp_t_ELINA_CONS_EQ, elina_constyp_t_ELINA_CONS_SUPEQ, elina_dim_t, elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_infty, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_interval_top, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_};
+use elina_sys::{__gmpf_floor, __gmpq_get_str, __gmpq_out_str, __gmpz_export, __gmpz_fdiv_q, __mpz_struct, bool_from_c_bool, c_bool_from_bool, elina_abstract0_add_dimensions, elina_abstract0_assign_texpr, elina_abstract0_bottom, elina_abstract0_bound_dimension, elina_abstract0_copy, elina_abstract0_dimension, elina_abstract0_free, elina_abstract0_is_bottom, elina_abstract0_is_eq, elina_abstract0_is_top, elina_abstract0_join, elina_abstract0_meet, elina_abstract0_meet_tcons_array, elina_abstract0_sat_tcons, elina_abstract0_t, elina_abstract0_to_lincons_array, elina_abstract0_top, elina_abstract0_widening, elina_constyp_t, elina_constyp_t_ELINA_CONS_DISEQ, elina_constyp_t_ELINA_CONS_EQ, elina_constyp_t_ELINA_CONS_SUPEQ, elina_dim_t, elina_dimchange_t, elina_interval_free, elina_lincons0_array_clear, elina_lincons0_array_print, elina_manager_free, elina_manager_t, elina_scalar_free, elina_scalar_infty, elina_scalar_t, elina_tcons0_array_make, elina_tcons0_t, elina_texpr0_binop, elina_texpr0_copy, elina_texpr0_cst_interval_top, elina_texpr0_cst_scalar_int, elina_texpr0_dim, elina_texpr0_free, elina_texpr0_t, elina_texpr0_unop, elina_texpr_op_t, elina_texpr_rdir_t_ELINA_RDIR_ZERO, elina_texpr_rtype_t_ELINA_RTYPE_INT, false_, free, opt_pk_manager_alloc, true_};
 use crate::util::lincons0_to_string;
 
 /// Provides the implementations of different abstract domains.
@@ -632,16 +632,7 @@ impl Abstract {
         var: S,
         texpr: &Texpr,
     ) {
-        unsafe {
-            elina_abstract0_assign_texpr(
-                man.as_manager_ptr(),
-                true_,
-                self.elina_abstract0,
-                env.var_to_dim[var.borrow()],
-                texpr.elina_texpr0,
-                std::ptr::null_mut(),
-            );
-        }
+        self.assign_dim(man, env[var.borrow()], texpr);
     }
 
     /// Returns a new `Abstract` representing `self` after `var` has been assigned `texpr`.
@@ -654,13 +645,45 @@ impl Abstract {
         M: Manager,
         S: Borrow<str>,
     {
+        self.assign_copy_dim(man, env[var.borrow()], texpr)
+    }
+
+    /// Assigns dimension `dim` to `texpr` in `self`.
+    ///
+    /// This function can be used to model mutable variables.
+    ///
+    /// See the copying counterpart at [`Abstract::assign_copy_dim`].
+    pub fn assign_dim<M: Manager>(
+        &mut self,
+        man: &M,
+        dim: u32,
+        texpr: &Texpr,
+    ) {
+        unsafe {
+            elina_abstract0_assign_texpr(
+                man.as_manager_ptr(),
+                true_,
+                self.elina_abstract0,
+                dim,
+                texpr.elina_texpr0,
+                std::ptr::null_mut(),
+            );
+        }
+    }
+
+    /// Returns a new `Abstract` representing `self` after dimension `dim` has been assigned `texpr`.
+    ///
+    /// This function can be used to model mutable variables.
+    ///
+    /// See the mutating counterpart at [`Abstract::assign_dim`].
+    pub fn assign_copy_dim<M: Manager>(&self, man: &M, dim: u32, texpr: &Texpr) -> Abstract {
         unsafe {
             Abstract {
                 elina_abstract0: elina_abstract0_assign_texpr(
                     man.as_manager_ptr(),
                     false_,
                     self.elina_abstract0,
-                    env.var_to_dim[var.borrow()],
+                    dim,
                     texpr.elina_texpr0,
                     std::ptr::null_mut(),
                 ),
@@ -685,6 +708,46 @@ impl Abstract {
         }
     }
 
+    /// Adds `n` dimensions after dimension `dim` to `self`.
+    pub fn add_dims<M: Manager>(&mut self, man: &M, dim: u32, n: usize) {
+        unsafe {
+            let mut dim = dim;
+
+            elina_abstract0_add_dimensions(
+                man.as_manager_ptr(),
+                true_,
+                self.elina_abstract0,
+                &mut elina_dimchange_t {
+                    dim: &mut dim,
+                    intdim: n as u64,
+                    realdim: 0
+                },
+                false_,
+            );
+        }
+    }
+
+    /// Returns a new `Abstract` representing `self` after `n` dimensions have been added after dimension `dim`.
+    pub fn add_dims_copy<M: Manager>(&self, man: &M, dim: u32, n: usize) -> Abstract {
+        unsafe {
+            let mut dim = dim;
+
+            Abstract {
+                elina_abstract0: elina_abstract0_add_dimensions(
+                    man.as_manager_ptr(),
+                    false_,
+                    self.elina_abstract0,
+                    &mut elina_dimchange_t {
+                        dim: &mut dim,
+                        intdim: n as u64,
+                        realdim: 0
+                    },
+                    false_,
+                )
+            }
+        }
+    }
+
     /// Returns `true` if `self` is Top.
     pub fn is_top<M: Manager>(&self, man: &M) -> bool {
         unsafe {
@@ -705,14 +768,22 @@ impl Abstract {
         }
     }
 
-    /// Returns the bounds of variable `var` in `self`.
-    pub fn get_bounds<M, S>(&self, man: &M, env: &Environment, var: S) -> Interval
-    where
-        M: Manager,
-        S: Borrow<str>,
-    {
+    /// Returns the bounds of the [`Texpr`] in `self`.
+    pub fn get_bounds_texpr<M: Manager>(&self, man: &M, texpr: &Texpr) -> Interval {
         unsafe {
-            let dim = env.var_to_dim[var.borrow()];
+            let dimensions = elina_abstract0_dimension(man.as_manager_ptr(), self.elina_abstract0);
+            let n = dimensions.intdim as u32;
+
+            let mut state = self.add_dims_copy(man, n-1, 1);
+            state.assign_dim(man, n, texpr);
+
+            state.get_bounds_dim(man, n)
+        }
+    }
+
+    /// Returns the bounds of dimension `dim` in `self`.
+    pub fn get_bounds_dim<M: Manager>(&self, man: &M, dim: u32) -> Interval {
+        unsafe {
             let interval_ptr =
                 elina_abstract0_bound_dimension(man.as_manager_ptr(), self.elina_abstract0, dim);
 
@@ -789,6 +860,18 @@ impl Abstract {
             elina_interval_free(interval_ptr);
 
             Interval(inf_bound, sup_bound)
+        }
+    }
+
+    /// Returns the bounds of variable `var` in `self`.
+    pub fn get_bounds<M, S>(&self, man: &M, env: &Environment, var: S) -> Interval
+    where
+        M: Manager,
+        S: Borrow<str>,
+    {
+        unsafe {
+            let dim = env.var_to_dim[var.borrow()];
+            self.get_bounds_dim(man, dim)
         }
     }
 

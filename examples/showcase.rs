@@ -105,6 +105,14 @@ fn main() {
     println!("3x < 9: {}", state.to_string(&man, &env));
     println!("x bounds: {:?}", state.get_bounds(&man, &env, "x"));
 
+    let mut state = Abstract::top(&man, &env);
+    state.assign(&man, &env, "y", &Texpr::int(2).mul(x.clone()));
+    println!("y = 2x: {}", state.to_string(&man, &env));
+    state.add_dims(&man, 3, 1);
+    state.assign_dim(&man, 4, &Texpr::int(5));
+    println!("bounds of new state: {:?}", state.get_bounds_dim(&man, 4));
+    println!("bounds of new state: {:?}", state.get_bounds_texpr(&man, &Texpr::int(100)));
+
     // 'Testing' memory leaks
 
     // let mut meet_assn = meet_assn.clone();
