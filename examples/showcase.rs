@@ -113,6 +113,17 @@ fn main() {
     println!("bounds of new state: {:?}", state.get_bounds_dim(&man, 4));
     println!("bounds of new state: {:?}", state.get_bounds_texpr(&man, &Texpr::int(100)));
 
+    // Testing segfault
+    // When one joins BOTTOM with something, where BOTTOM was obtained with unsat meet, segfault happens.
+    // Segfault does not happen when Bottom is obtained with ::bottom()
+    let mut state = hc_or_meet_joined.clone();
+    let mut bot = state.clone();
+    // let mut bot = Abstract::bottom(&man, &env);
+    println!("bottom = state MEET false");
+    bot.meet(&man, &Texpr::int(1).lt(Texpr::int(0)));
+    println!("bottom JOIN state");
+    bot.join(&man, &state);
+    println!("{}", bot.to_string(&man, &env));
     // 'Testing' memory leaks
 
     // let mut meet_assn = meet_assn.clone();
