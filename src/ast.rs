@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::ffi::{CStr, CString};
 use std::fmt::{Debug, Formatter};
@@ -1267,7 +1268,7 @@ impl Debug for Interval {
 }
 
 /// A bound used for [`Interval`].
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 pub enum Bound {
     PosInfinity,
     NegInfinity,
@@ -1280,6 +1281,22 @@ impl Debug for Bound {
             Bound::PosInfinity => f.write_str("+oo"),
             Bound::NegInfinity => f.write_str("-oo"),
             Bound::Num(n) => Debug::fmt(n, f),
+        }
+    }
+}
+
+impl PartialOrd for Bound {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Bound::PosInfinity, Bound::PosInfinity) => Some(Ordering::Equal),
+            (Bound::PosInfinity, Bound::NegInfinity) => Some(Ordering::Greater),
+            (Bound::PosInfinity, Bound::Num(_)) => Some(Ordering::Greater),
+            (Bound::NegInfinity, Bound::PosInfinity) => Some(Ordering::Less),
+            (Bound::NegInfinity, Bound::NegInfinity) => Some(Ordering::Equal),
+            (Bound::NegInfinity, Bound::Num(_)) => Some(Ordering::Less),
+            (Bound::Num(n1), Bound::PosInfinity) => Some(Ordering::Less),
+            (Bound::Num(n1), Bound::NegInfinity) => Some(Ordering::Greater),
+            (Bound::Num(n1), Bound::Num(n2)) => n1.partial_cmp(n2),
         }
     }
 }
