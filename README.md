@@ -24,6 +24,11 @@ Please read the [API documentation](https://docs.rs/elina).
 See [`examples/showcase.rs`](examples/showcase.rs) for an example.  
 You can run the example with `cargo run --example showcase`
 
+### Projects
+
+The following projects use `elina-rs` (feel free to open a PR with your own!):
+- [skius/progge.rs](https://github.com/skius/progge.rs) - Program analysis playground for a simple, imperative language
+
 ## License
 
 Licensed under either of
