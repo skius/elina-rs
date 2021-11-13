@@ -14,7 +14,7 @@ See [ELINA's website](http://elina.ethz.ch/) for instructions on how to install 
 After you've installed ELINA, you can add this crate as a dependency in your `Cargo.toml`:
 ```toml
 [dependencies]
-elina = "0.1.1"
+elina = "0.3.1"
 ```
 
 ## Usage
