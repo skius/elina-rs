@@ -960,10 +960,11 @@ impl Abstract {
 impl Drop for Abstract {
     fn drop(&mut self) {
         unsafe {
-            if bool_from_c_bool(elina_abstract0_is_bottom((*self.elina_abstract0).man, self.elina_abstract0)) {
-                // println!("Abstract drop ignored because it's bottom");
-                return;
-            }
+            // Fixed in https://github.com/eth-sri/ELINA/issues/87
+            // if bool_from_c_bool(elina_abstract0_is_bottom((*self.elina_abstract0).man, self.elina_abstract0)) {
+            //     // println!("Abstract drop ignored because it's bottom");
+            //     return;
+            // }
             // println!("Drop incoming:");
             // let man_ptr = (*self.elina_abstract0).man;
             // println!("Dropping Abstract:!!!");
@@ -1242,12 +1243,15 @@ impl Joinable for Abstract {
         destructive: bool,
     ) -> *mut elina_abstract0_t {
         // TODO: - this is to avoid bug mentioned here: https://github.com/eth-sri/ELINA/issues/87
-        if bool_from_c_bool(elina_abstract0_is_bottom(man.as_manager_ptr(), other)) {
-            // bottom JOIN self == self, always
-            // Not freeing other, because it's bottom and hence shouldn't be freed - see Abstract::drop
-            *other = *elina_abstract0_copy(man.as_manager_ptr(), self.elina_abstract0);
-            return other;
-        }
+        // Fixed
+        // if bool_from_c_bool(elina_abstract0_is_bottom(man.as_manager_ptr(), other)) {
+        //     // bottom JOIN self == self, always
+        //     // Not freeing other, because it's bottom and hence shouldn't be freed - see Abstract::drop
+        //     *other = *elina_abstract0_copy(man.as_manager_ptr(), self.elina_abstract0);
+        //     return other;
+        // }
+
+        // TODO: investigate if bottom is modified when joined with something
 
         elina_abstract0_join(
             man.as_manager_ptr(),

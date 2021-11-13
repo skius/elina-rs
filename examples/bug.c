@@ -1,6 +1,7 @@
 #include "opt_pk.h"
 
 // bug from https://github.com/eth-sri/ELINA/issues/87
+// Fixed
 int main() {
     elina_manager_t *pk = opt_pk_manager_alloc(0);
 
